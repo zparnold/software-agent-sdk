@@ -582,8 +582,11 @@ class WebhookSubscriber(Subscriber):
             headers["X-Session-API-Key"] = self.session_api_key
 
         # Convert events to serializable format
+        # Use mode='json' to ensure computed fields like 'kind' are included
         event_data = [
-            event.model_dump() if hasattr(event, "model_dump") else event.__dict__
+            event.model_dump(mode="json")
+            if hasattr(event, "model_dump")
+            else event.__dict__
             for event in events_to_post
         ]
 
@@ -659,6 +662,7 @@ class ConversationWebhookSubscriber:
         conversations_url = f"{self.spec.base_url.rstrip('/')}/conversations"
 
         # Convert conversation info to serializable format
+        # Use mode='json' to ensure all fields are properly serialized
         conversation_data = conversation_info.model_dump(mode="json")
 
         # Retry logic
