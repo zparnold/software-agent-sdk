@@ -147,12 +147,22 @@ class VSCodeService:
             if self.extensions_dir.exists()
             else ""
         )
+
+        # Get runtime ID from environment to construct base path for proxy
+        runtime_id = os.getenv("OH_RUNTIME_ID", "")
+        base_path_arg = (
+            f"--server-base-path /sandbox/{runtime_id}/vscode "
+            if runtime_id
+            else ""
+        )
+
         cmd = (
             f"exec {self.openvscode_server_root}/bin/openvscode-server "
             f"--host 0.0.0.0 "
             f"--connection-token {self.connection_token} "
             f"--port {self.port} "
             f"{extensions_arg}"
+            f"{base_path_arg}"
             f"--disable-workspace-trust\n"
         )
 
