@@ -40,6 +40,7 @@ namespaces = true
 # Include Docker-related files and VSCode extensions
 "openhands.agent_server" = [
   "docker/Dockerfile",
+  "docker/entrypoint.sh",
   "docker/wallpaper.svg",
   "vscode_extensions/**/*.json",
   "vscode_extensions/**/*.js",

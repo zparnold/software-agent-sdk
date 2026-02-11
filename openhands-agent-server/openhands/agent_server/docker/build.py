@@ -381,6 +381,14 @@ class BuildOptions(BaseModel):
             "(e.g., at each release)."
         ),
     )
+    strip_duplicate_argv: bool = Field(
+        default=True,
+        description=(
+            "When True (default), the generated entrypoint for binary targets "
+            "strips a duplicate leading argv (e.g. from K8s CMD+Args). "
+            "Set False to disable."
+        ),
+    )
 
     @property
     def short_sha(self) -> str:
@@ -538,6 +546,35 @@ def _get_dockerfile_path(sdk_project_root: Path) -> Path:
     return dockerfile_path
 
 
+def _entrypoint_script(*, strip_duplicate_argv: bool) -> str:
+    """
+    Generate entrypoint.sh content for binary/binary-minimal targets.
+    When strip_duplicate_argv is True, strips a duplicate leading argument
+    (e.g. from K8s CMD + Args) before exec.
+    """
+    lines = [
+        "#!/bin/bash",
+        "set -eo pipefail",
+        "",
+        "# Merge any CA certs mounted at /usr/local/share/ca-certificates (e.g. by Kubernetes",
+        "# when CA_CERT_SECRET_NAME is set) into the system trust store so outbound HTTPS",
+        "# (e.g. to Azure OpenAI, webhook callbacks) can verify corporate/internal TLS.",
+        'if command -v update-ca-certificates &>/dev/null; then',
+        "  update-ca-certificates",
+        "fi",
+        "",
+    ]
+    if strip_duplicate_argv:
+        lines.extend([
+            "# Some runtimes (e.g. K8s) pass image CMD then request Args, producing a duplicate",
+            "# leading argv; drop one so we don't pass the binary path as an argument.",
+            'while [ "$#" -ge 2 ] && [ "$1" = "$2" ]; do shift; done',
+            "",
+        ])
+    lines.append('exec "$@"')
+    return "\n".join(lines) + "\n"
+
+
 # --- single entry point ---
 
 
@@ -553,6 +590,28 @@ def build(opts: BuildOptions) -> list[str]:
 
     ctx = _make_build_context(opts.sdk_project_root)
     logger.info(f"[build] Clean build context: {ctx}")
+
+    # For binary targets, inject entrypoint.sh so COPY in Dockerfile finds it,
+    # and so it appears under .../docker/ in the image (builder copies context).
+    # Content is generated here (strip_duplicate_argv controlled by flag).
+    if opts.target in ("binary", "binary-minimal"):
+        script = _entrypoint_script(strip_duplicate_argv=opts.strip_duplicate_argv)
+        # At context root for Dockerfile: COPY entrypoint.sh /openhands/entrypoint.sh
+        (ctx / "entrypoint.sh").write_text(script, encoding="utf-8")
+        (ctx / "entrypoint.sh").chmod(0o755)
+        # Under .../docker/ so COPY --from=builder /agent-server places it in image
+        for rel in (
+            Path("openhands-agent-server") / "openhands" / "agent_server" / "docker",
+            Path("openhands") / "agent_server" / "docker",
+        ):
+            docker_dir = ctx / rel
+            if docker_dir.exists():
+                (docker_dir / "entrypoint.sh").write_text(script, encoding="utf-8")
+                (docker_dir / "entrypoint.sh").chmod(0o755)
+                break
+        logger.debug(
+            f"[build] Wrote entrypoint.sh (strip_duplicate_argv={opts.strip_duplicate_argv})"
+        )
 
     args = [
         "docker",
@@ -727,6 +786,15 @@ def main(argv: list[str]) -> int:
             "Should only be used for release builds."
         ),
     )
+    parser.add_argument(
+        "--no-strip-duplicate-argv",
+        action="store_true",
+        dest="no_strip_duplicate_argv",
+        help=(
+            "Disable stripping duplicate leading argv in the binary entrypoint "
+            "(e.g. when K8s passes CMD+Args). Default is to strip."
+        ),
+    )
 
     args = parser.parse_args(argv)
 
@@ -755,7 +823,22 @@ def main(argv: list[str]) -> int:
             sdk_project_root=sdk_project_root,
             arch=args.arch or None,
             include_versioned_tag=args.versioned_tag,
+            strip_duplicate_argv=not getattr(args, "no_strip_duplicate_argv", False),
         )
+        if opts.target in ("binary", "binary-minimal"):
+            ep = ctx / "entrypoint.sh"
+            ep.write_text(
+                _entrypoint_script(strip_duplicate_argv=opts.strip_duplicate_argv),
+                encoding="utf-8",
+            )
+            ep.chmod(0o755)
+            docker_dir = ctx / "openhands-agent-server" / "openhands" / "agent_server" / "docker"
+            if docker_dir.exists():
+                (docker_dir / "entrypoint.sh").write_text(
+                    _entrypoint_script(strip_duplicate_argv=opts.strip_duplicate_argv),
+                    encoding="utf-8",
+                )
+                (docker_dir / "entrypoint.sh").chmod(0o755)
 
         # If running in GitHub Actions, write outputs directly to GITHUB_OUTPUT
         github_output = os.environ.get("GITHUB_OUTPUT")
@@ -802,6 +885,7 @@ def main(argv: list[str]) -> int:
         sdk_project_root=sdk_project_root,
         arch=args.arch or None,
         include_versioned_tag=args.versioned_tag,
+        strip_duplicate_argv=not getattr(args, "no_strip_duplicate_argv", False),
     )
     tags = build(opts)
 

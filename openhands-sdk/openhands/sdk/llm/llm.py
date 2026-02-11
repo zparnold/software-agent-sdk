@@ -404,9 +404,11 @@ class LLM(BaseModel, RetryMixin, NonNativeToolCallingMixin):
         if not model_val:
             raise ValueError("model must be specified in LLM")
 
-        # Azure default version
-        if model_val.startswith("azure") and not d.get("api_version"):
-            d["api_version"] = "2024-12-01-preview"
+        # Azure: Responses API requires 2025-03-01-preview or later; upgrade default and legacy
+        if model_val.startswith("azure"):
+            av = d.get("api_version")
+            if av is None or av == "2024-12-01-preview":
+                d["api_version"] = "2025-03-01-preview"
 
         # Provider rewrite: openhands/* -> litellm_proxy/*
         if model_val.startswith("openhands/"):
