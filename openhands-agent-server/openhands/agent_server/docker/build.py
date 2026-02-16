@@ -569,18 +569,20 @@ def _entrypoint_script(*, strip_duplicate_argv: bool) -> str:
         "# Merge any CA certs mounted at /usr/local/share/ca-certificates (e.g. by Kubernetes",
         "# when CA_CERT_SECRET_NAME is set) into the system trust store so outbound HTTPS",
         "# (e.g. to Azure OpenAI, webhook callbacks) can verify corporate/internal TLS.",
-        'if command -v update-ca-certificates &>/dev/null; then',
+        "if command -v update-ca-certificates &>/dev/null; then",
         "  update-ca-certificates",
         "fi",
         "",
     ]
     if strip_duplicate_argv:
-        lines.extend([
-            "# Some runtimes (e.g. K8s) pass image CMD then request Args, producing a duplicate",
-            "# leading argv; drop one so we don't pass the binary path as an argument.",
-            'while [ "$#" -ge 2 ] && [ "$1" = "$2" ]; do shift; done',
-            "",
-        ])
+        lines.extend(
+            [
+                "# Some runtimes (e.g. K8s) pass image CMD then request Args, producing a duplicate",
+                "# leading argv; drop one so we don't pass the binary path as an argument.",
+                'while [ "$#" -ge 2 ] && [ "$1" = "$2" ]; do shift; done',
+                "",
+            ]
+        )
     lines.append('exec "$@"')
     return "\n".join(lines) + "\n"
 
@@ -590,7 +592,9 @@ def _entrypoint_script(*, strip_duplicate_argv: bool) -> str:
 
 def build(opts: BuildOptions) -> list[str]:
     """Single entry point for building the agent-server image."""
-    dockerfile_path = _get_dockerfile_path(opts.sdk_project_root, opts.dockerfile_variant)
+    dockerfile_path = _get_dockerfile_path(
+        opts.sdk_project_root, opts.dockerfile_variant
+    )
     push = opts.push
     if push is None:
         push = IN_CI
@@ -852,7 +856,9 @@ def main(argv: list[str]) -> int:
                 encoding="utf-8",
             )
             ep.chmod(0o755)
-            docker_dir = ctx / "openhands-agent-server" / "openhands" / "agent_server" / "docker"
+            docker_dir = (
+                ctx / "openhands-agent-server" / "openhands" / "agent_server" / "docker"
+            )
             if docker_dir.exists():
                 (docker_dir / "entrypoint.sh").write_text(
                     _entrypoint_script(strip_duplicate_argv=opts.strip_duplicate_argv),
