@@ -125,7 +125,7 @@ sdk install maven 3.9.6
 ```
 
 ### Go (Go and Full variants)
-Uses [goenv](https://github.com/go-nv/goenv) for managing Go versions.
+Uses [goenv](https://github.com/syndbg/goenv) for managing Go versions.
 
 **Example commands:**
 ```bash
