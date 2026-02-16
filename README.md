@@ -79,6 +79,19 @@ print("All done!")
 
 For installation instructions and detailed setup, see the [Getting Started Guide](https://docs.openhands.dev/sdk/getting-started).
 
+## Multi-Language Runtime Support
+
+The Agent Server now supports multiple programming languages beyond Python and Node.js! Choose from pre-built Docker images with:
+
+- **Default**: Python 3.12 + Node.js 22
+- **JVM**: Java 21, Maven, Gradle (+ Python & Node.js)
+- **Go**: Go 1.23.5 (+ Python & Node.js)
+- **Full**: All language runtimes combined
+
+Each variant includes version managers (SDKMAN, goenv) for on-demand version switching.
+
+For details on using different language runtimes, see [Language Runtime Support](openhands-agent-server/openhands/agent_server/docker/LANGUAGE_RUNTIMES.md).
+
 ## Documentation
 
 For detailed documentation, tutorials, and API reference, visit:
