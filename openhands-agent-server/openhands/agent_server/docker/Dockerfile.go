@@ -93,8 +93,9 @@ RUN set -eux; \
     rm "go${GO_VERSION}.linux-${arch}.tar.gz"
 
 # Set Go environment variables
+# Note: Using explicit username 'openhands' instead of ${USERNAME} since ENV doesn't expand build args at runtime
 ENV GOROOT=/usr/local/go
-ENV GOPATH=/home/${USERNAME}/go
+ENV GOPATH=/home/openhands/go
 ENV PATH=$PATH:$GOROOT/bin:$GOPATH/bin
 
 # Install goenv for version management (allows on-demand version switching)
