@@ -349,6 +349,15 @@ class BuildOptions(BaseModel):
         default=None,
         description="Architecture suffix (e.g., 'amd64', 'arm64') to append to tags",
     )
+    dockerfile_variant: str | None = Field(
+        default=None,
+        description=(
+            "Dockerfile variant to use (e.g., 'jvm', 'go', 'full'). "
+            "If specified, uses Dockerfile.<variant> instead of Dockerfile. "
+            "Use 'jvm' for Java/Maven/Gradle support, 'go' for Go support, "
+            "'full' for all language runtimes."
+        ),
+    )
     include_base_tag: bool = Field(
         default=True,
         description=(
@@ -473,8 +482,8 @@ def _extract_tarball(tarball: Path, dest: Path) -> None:
         tar.extractall(path=".", filter="data")
 
 
-def _make_build_context(sdk_project_root: Path) -> Path:
-    dockerfile_path = _get_dockerfile_path(sdk_project_root)
+def _make_build_context(sdk_project_root: Path, variant: str | None = None) -> Path:
+    dockerfile_path = _get_dockerfile_path(sdk_project_root, variant)
     tmp_root = Path(tempfile.mkdtemp(prefix="agent-build-", dir=None)).resolve()
     sdist_dir = Path(tempfile.mkdtemp(prefix="agent-sdist-", dir=None)).resolve()
     try:
@@ -532,14 +541,15 @@ def _default_local_cache_dir() -> Path:
     return Path(xdg) / "openhands" / "buildx-cache"
 
 
-def _get_dockerfile_path(sdk_project_root: Path) -> Path:
+def _get_dockerfile_path(sdk_project_root: Path, variant: str | None = None) -> Path:
+    dockerfile_name = "Dockerfile" if not variant else f"Dockerfile.{variant}"
     dockerfile_path = (
         sdk_project_root
         / "openhands-agent-server"
         / "openhands"
         / "agent_server"
         / "docker"
-        / "Dockerfile"
+        / dockerfile_name
     )
     if not dockerfile_path.exists():
         raise FileNotFoundError(f"Dockerfile not found at {dockerfile_path}")
@@ -580,7 +590,7 @@ def _entrypoint_script(*, strip_duplicate_argv: bool) -> str:
 
 def build(opts: BuildOptions) -> list[str]:
     """Single entry point for building the agent-server image."""
-    dockerfile_path = _get_dockerfile_path(opts.sdk_project_root)
+    dockerfile_path = _get_dockerfile_path(opts.sdk_project_root, opts.dockerfile_variant)
     push = opts.push
     if push is None:
         push = IN_CI
@@ -588,7 +598,7 @@ def build(opts: BuildOptions) -> list[str]:
     tags = opts.all_tags
     cache_tag, cache_tag_base = opts.cache_tags
 
-    ctx = _make_build_context(opts.sdk_project_root)
+    ctx = _make_build_context(opts.sdk_project_root, opts.dockerfile_variant)
     logger.info(f"[build] Clean build context: {ctx}")
 
     # For binary targets, inject entrypoint.sh so COPY in Dockerfile finds it,
@@ -756,6 +766,15 @@ def main(argv: list[str]) -> int:
             "Architecture suffix for tags (e.g., 'amd64', 'arm64', default from $ARCH)."
         ),
     )
+    parser.add_argument(
+        "--dockerfile-variant",
+        default=_env("DOCKERFILE_VARIANT", ""),
+        help=(
+            "Dockerfile variant to use (e.g., 'jvm', 'go', 'full'). "
+            "Uses Dockerfile.<variant> instead of Dockerfile. "
+            "Default from $DOCKERFILE_VARIANT or empty for standard Dockerfile."
+        ),
+    )
     group = parser.add_mutually_exclusive_group()
     group.add_argument(
         "--push",
@@ -809,7 +828,7 @@ def main(argv: list[str]) -> int:
 
     # ---- build-ctx-only path ----
     if args.build_ctx_only:
-        ctx = _make_build_context(sdk_project_root)
+        ctx = _make_build_context(sdk_project_root, args.dockerfile_variant or None)
         logger.info(f"[build] Clean build context (kept for debugging): {ctx}")
 
         # Create BuildOptions to generate tags
@@ -822,6 +841,7 @@ def main(argv: list[str]) -> int:
             push=None,  # Not relevant for build-ctx-only
             sdk_project_root=sdk_project_root,
             arch=args.arch or None,
+            dockerfile_variant=args.dockerfile_variant or None,
             include_versioned_tag=args.versioned_tag,
             strip_duplicate_argv=not getattr(args, "no_strip_duplicate_argv", False),
         )
@@ -884,6 +904,7 @@ def main(argv: list[str]) -> int:
         push=push,
         sdk_project_root=sdk_project_root,
         arch=args.arch or None,
+        dockerfile_variant=args.dockerfile_variant or None,
         include_versioned_tag=args.versioned_tag,
         strip_duplicate_argv=not getattr(args, "no_strip_duplicate_argv", False),
     )
