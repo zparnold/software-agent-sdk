@@ -115,16 +115,18 @@ RUN git clone https://github.com/go-nv/goenv.git ~/.goenv && \
     echo 'eval "$(goenv init -)"' >> ~/.bashrc && \
     mkdir -p $GOPATH/bin
 
-# Set Java environment variables (detect architecture-specific JAVA_HOME)
+# Set Java environment variables (detect architecture-specific JAVA_HOME and PATH)
 USER root
 RUN set -eux; \
     arch=$(uname -m); \
     if [ "${arch}" = "x86_64" ]; then \
-        echo "JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64" >> /etc/environment; \
+        JAVA_PATH="/usr/lib/jvm/java-21-openjdk-amd64/bin"; \
     elif [ "${arch}" = "aarch64" ]; then \
-        echo "JAVA_HOME=/usr/lib/jvm/java-21-openjdk-arm64" >> /etc/environment; \
-    fi
-ENV PATH=$PATH:$GOROOT/bin:$GOPATH/bin:/usr/lib/jvm/java-21-openjdk-amd64/bin:/home/${USERNAME}/.sdkman/candidates/maven/current/bin:/home/${USERNAME}/.sdkman/candidates/gradle/current/bin
+        JAVA_PATH="/usr/lib/jvm/java-21-openjdk-arm64/bin"; \
+    else \
+        JAVA_PATH="/usr/lib/jvm/java-21-openjdk/bin"; \
+    fi; \
+    echo "PATH=\$PATH:$GOROOT/bin:$GOPATH/bin:${JAVA_PATH}:/home/${USERNAME}/.sdkman/candidates/maven/current/bin:/home/${USERNAME}/.sdkman/candidates/gradle/current/bin" >> /etc/environment
 
 # NOTE: we should NOT include UV_PROJECT_ENVIRONMENT here, 
 # since the agent might use it to perform other work (e.g. tools that use Python)
