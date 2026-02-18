@@ -211,12 +211,19 @@ class EventService:
         if not self._conversation:
             raise ValueError("inactive_service")
 
-        # Convert datetime to ISO string for comparison (ISO strings are comparable)
-        timestamp_gte_str = timestamp__gte.isoformat() if timestamp__gte else None
-        timestamp_lt_str = timestamp__lt.isoformat() if timestamp__lt else None
+        has_filters = any([kind, source, body, timestamp__gte, timestamp__lt])
 
-        count = 0
         with self._conversation._state as state:
+            # Fast path: no filters, just return the length
+            if not has_filters:
+                return len(state.events)
+
+            # Slow path: iterate with filters
+            # Convert datetime to ISO string for comparison (ISO strings are comparable)
+            timestamp_gte_str = timestamp__gte.isoformat() if timestamp__gte else None
+            timestamp_lt_str = timestamp__lt.isoformat() if timestamp__lt else None
+
+            count = 0
             for event in state.events:
                 # Apply kind filter if provided
                 if (
