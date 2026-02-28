@@ -39,6 +39,17 @@ class OrgConfig(BaseModel):
         "Contains sensitive credentials - handle with care and avoid logging."
     )
     org_name: str = Field(description="Organization name")
+    auth_header: str | None = Field(
+        default=None,
+        description="Optional HTTP auth header for git operations "
+        "(e.g., 'Authorization: Bearer <token>'). When set, uses the SDK's "
+        "cached org skill loader instead of temp-dir cloning.",
+    )
+    branch: str | None = Field(
+        default=None,
+        description="Optional branch name for the org skills repository. "
+        "Defaults to 'main' if not specified.",
+    )
 
 
 class SandboxConfig(BaseModel):
@@ -131,9 +142,13 @@ def get_skills(request: SkillsRequest) -> SkillsResponse:
 
     org_repo_url = None
     org_name = None
+    org_auth_header = None
+    org_branch = None
     if request.org_config:
         org_repo_url = request.org_config.org_repo_url
         org_name = request.org_config.org_name
+        org_auth_header = request.org_config.auth_header
+        org_branch = request.org_config.branch
 
     # Call the service
     result = load_all_skills(
@@ -144,6 +159,8 @@ def get_skills(request: SkillsRequest) -> SkillsResponse:
         project_dir=request.project_dir,
         org_repo_url=org_repo_url,
         org_name=org_name,
+        org_auth_header=org_auth_header,
+        org_branch=org_branch,
         sandbox_exposed_urls=sandbox_urls,
     )
 

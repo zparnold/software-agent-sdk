@@ -22,6 +22,7 @@ from pathlib import Path
 
 from openhands.sdk.context.skills import (
     Skill,
+    load_org_skills,
     load_project_skills,
     load_public_skills,
     load_user_skills,
@@ -285,6 +286,8 @@ def load_all_skills(
     project_dir: str | None = None,
     org_repo_url: str | None = None,
     org_name: str | None = None,
+    org_auth_header: str | None = None,
+    org_branch: str | None = None,
     sandbox_exposed_urls: list[ExposedUrlData] | None = None,
 ) -> SkillLoadResult:
     """Load and merge skills from all configured sources.
@@ -305,6 +308,10 @@ def load_all_skills(
         project_dir: Workspace directory path for project skills.
         org_repo_url: Pre-authenticated Git URL for org skills.
         org_name: Organization name for org skills.
+        org_auth_header: Optional HTTP auth header for org repo git operations.
+            When set, uses the SDK's cached load_org_skills() instead of
+            temp-dir cloning via load_org_skills_from_url().
+        org_branch: Optional branch for org skills repo (default: 'main').
         sandbox_exposed_urls: List of exposed URLs from sandbox.
 
     Returns:
@@ -346,12 +353,21 @@ def load_all_skills(
 
     # 4. Load organization skills
     org_skills: list[Skill] = []
-    if load_org and org_repo_url and org_name:
+    if load_org and org_repo_url:
         try:
-            org_skills = load_org_skills_from_url(
-                org_repo_url=org_repo_url,
-                org_name=org_name,
-            )
+            if org_auth_header:
+                # Use SDK's cached loader with auth header support
+                org_skills = load_org_skills(
+                    repo_url=org_repo_url,
+                    branch=org_branch or "main",
+                    auth_header=org_auth_header,
+                )
+            elif org_name:
+                # Fall back to temp-dir cloning with pre-authenticated URL
+                org_skills = load_org_skills_from_url(
+                    org_repo_url=org_repo_url,
+                    org_name=org_name,
+                )
             logger.info(f"Loaded {len(org_skills)} organization skills")
         except Exception as e:
             logger.warning(f"Failed to load organization skills: {e}")
