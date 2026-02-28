@@ -330,6 +330,38 @@ def update_skills_repository(
     return try_cached_clone_or_update(repo_url, repo_path, ref=branch, update=True)
 
 
+def update_org_skills_repository(
+    repo_url: str,
+    branch: str,
+    cache_dir: Path,
+    auth_header: str | None = None,
+) -> Path | None:
+    """Clone or update the org-level skills repository.
+
+    Uses the shared git caching infrastructure from openhands.sdk.git.cached_repo.
+    Supports authenticated git operations via an HTTP auth header (e.g., for
+    Azure DevOps or private GitHub repos).
+
+    Args:
+        repo_url: URL of the org skills repository.
+        branch: Branch name to checkout and track.
+        cache_dir: Directory where the repository should be cached.
+        auth_header: Optional HTTP auth header value (e.g.,
+            "Authorization: Bearer <token>"). Passed as git config
+            ``http.extraHeader``.
+
+    Returns:
+        Path to the local repository if successful, None otherwise.
+    """
+    repo_path = cache_dir / "org-skills"
+    extra_git_config: list[str] | None = None
+    if auth_header:
+        extra_git_config = [f"http.extraHeader={auth_header}"]
+    return try_cached_clone_or_update(
+        repo_url, repo_path, ref=branch, update=True, extra_git_config=extra_git_config
+    )
+
+
 def discover_skill_resources(skill_dir: Path) -> SkillResources:
     """Discover resource directories in a skill directory.
 

@@ -23,6 +23,7 @@ from openhands.sdk.context.skills.utils import (
     get_skills_cache_dir,
     load_and_categorize,
     load_mcp_config,
+    update_org_skills_repository,
     update_skills_repository,
     validate_skill_name,
 )
@@ -886,6 +887,89 @@ def load_public_skills(
     logger.info(
         f"Loaded {len(all_skills)} public skills: {[s.name for s in all_skills]}"
     )
+    return all_skills
+
+
+def load_org_skills(
+    repo_url: str,
+    branch: str = "main",
+    auth_header: str | None = None,
+) -> list[Skill]:
+    """Load skills from an org-level private skills repository.
+
+    This function maintains a local git clone of an organization's private
+    skills repository. On first run, it clones the repository to
+    ``~/.openhands/cache/skills/org-skills/``. On subsequent runs, it pulls
+    the latest changes. Supports authenticated git operations via an HTTP
+    auth header for private repos (e.g., Azure DevOps, private GitHub).
+
+    Args:
+        repo_url: URL of the org skills repository.
+        branch: Branch name to load skills from. Defaults to ``"main"``.
+        auth_header: Optional HTTP auth header value (e.g.,
+            ``"Authorization: Bearer <token>"``). Required for private repos.
+
+    Returns:
+        List of Skill objects loaded from the org repository.
+        Returns empty list if loading fails.
+
+    Example:
+        >>> from openhands.sdk.context.skills import load_org_skills
+        >>>
+        >>> # Load org skills with auth
+        >>> org_skills = load_org_skills(
+        ...     repo_url="https://dev.azure.com/org/project/_git/skills",
+        ...     auth_header="Authorization: Bearer my-token",
+        ... )
+    """
+    all_skills: list[Skill] = []
+
+    try:
+        cache_dir = get_skills_cache_dir()
+        repo_path = update_org_skills_repository(
+            repo_url, branch, cache_dir, auth_header=auth_header
+        )
+
+        if repo_path is None:
+            logger.warning("Failed to access org skills repository")
+            return all_skills
+
+        # Load skills from the local repository
+        skills_dir = repo_path / "skills"
+        if not skills_dir.exists():
+            logger.warning(
+                f"Skills directory not found in org repository: {skills_dir}"
+            )
+            return all_skills
+
+        # Find SKILL.md directories (AgentSkills format) and regular .md files
+        skill_md_files = find_skill_md_directories(skills_dir)
+        skill_md_dirs = {skill_md.parent for skill_md in skill_md_files}
+        regular_md_files = find_regular_md_files(skills_dir, skill_md_dirs)
+
+        all_skill_files = list(skill_md_files) + list(regular_md_files)
+        logger.info(
+            f"Found {len(all_skill_files)} skill files in org skills repository"
+        )
+
+        for skill_file in all_skill_files:
+            try:
+                skill = Skill.load(
+                    path=skill_file,
+                    skill_base_dir=repo_path,
+                )
+                if skill is None:
+                    continue
+                all_skills.append(skill)
+                logger.debug(f"Loaded org skill: {skill.name}")
+            except Exception as e:
+                logger.warning(f"Failed to load skill from {skill_file.name}: {str(e)}")
+                continue
+
+    except Exception as e:
+        logger.warning(f"Failed to load org skills from {repo_url}: {str(e)}")
+
+    logger.info(f"Loaded {len(all_skills)} org skills: {[s.name for s in all_skills]}")
     return all_skills
 
 

@@ -222,7 +222,11 @@ class TestCloneRepository:
         _clone_repository("https://github.com/owner/repo.git", dest, None, mock_git)
 
         mock_git.clone.assert_called_once_with(
-            "https://github.com/owner/repo.git", dest, depth=1, branch=None
+            "https://github.com/owner/repo.git",
+            dest,
+            depth=1,
+            branch=None,
+            extra_git_config=None,
         )
 
     def test_clone_with_ref(self, tmp_path: Path):
@@ -233,7 +237,11 @@ class TestCloneRepository:
         _clone_repository("https://github.com/owner/repo.git", dest, "v1.0.0", mock_git)
 
         mock_git.clone.assert_called_once_with(
-            "https://github.com/owner/repo.git", dest, depth=1, branch="v1.0.0"
+            "https://github.com/owner/repo.git",
+            dest,
+            depth=1,
+            branch="v1.0.0",
+            extra_git_config=None,
         )
 
     def test_clone_removes_existing_directory(self, tmp_path: Path):
@@ -258,7 +266,7 @@ class TestUpdateRepository:
 
         _update_repository(tmp_path, None, mock_git)
 
-        mock_git.fetch.assert_called_once_with(tmp_path)
+        mock_git.fetch.assert_called_once_with(tmp_path, extra_git_config=None)
         mock_git.get_current_branch.assert_called_once_with(tmp_path)
         mock_git.reset_hard.assert_called_once_with(tmp_path, "origin/main")
 
@@ -270,7 +278,7 @@ class TestUpdateRepository:
         _update_repository(tmp_path, "v1.0.0", mock_git)
 
         # fetch is called once in _update_repository (checkout_ref no longer fetches)
-        mock_git.fetch.assert_called_once_with(tmp_path)
+        mock_git.fetch.assert_called_once_with(tmp_path, extra_git_config=None)
         mock_git.checkout.assert_called_once_with(tmp_path, "v1.0.0")
 
     def test_update_detached_head_recovers_to_default_branch(self, tmp_path: Path):
@@ -938,7 +946,9 @@ class TestCacheLocking:
         # Track whether lock file exists during clone
         lock_existed_during_clone = []
 
-        def mock_clone(url, dest, depth=None, branch=None, timeout=120):
+        def mock_clone(
+            url, dest, depth=None, branch=None, timeout=120, extra_git_config=None
+        ):
             lock_path = repo_path.with_suffix(".lock")
             lock_existed_during_clone.append(lock_path.exists())
 

@@ -9,6 +9,7 @@ from openhands.sdk.context.prompts import render_template
 from openhands.sdk.context.skills import (
     Skill,
     SkillKnowledge,
+    load_org_skills,
     load_public_skills,
     load_user_skills,
     to_prompt,
@@ -71,6 +72,28 @@ class AgentContext(BaseModel):
             "This allows you to get the latest skills without SDK updates."
         ),
     )
+    enable_org_skills: bool = Field(
+        default=False,
+        description=(
+            "Whether to automatically load skills from an org-level private "
+            "skills repository. Requires org_skills_repo_url to be set."
+        ),
+    )
+    org_skills_repo_url: str | None = Field(
+        default=None,
+        description="URL of the org-level skills repository.",
+    )
+    org_skills_branch: str = Field(
+        default="main",
+        description="Branch name to load org skills from.",
+    )
+    org_skills_auth_header: str | None = Field(
+        default=None,
+        description=(
+            "HTTP auth header value for the org skills repository "
+            "(e.g., 'Authorization: Bearer <token>')."
+        ),
+    )
     secrets: Mapping[str, SecretValue] | None = Field(
         default=None,
         description=(
@@ -93,6 +116,38 @@ class AgentContext(BaseModel):
                 raise ValueError(f"Duplicate skill name found: {skill.name}")
             seen_names.add(skill.name)
         return v
+
+    @model_validator(mode="after")
+    def _load_org_skills(self):
+        """Load org skills from a private repository if enabled."""
+        if not self.enable_org_skills:
+            return self
+
+        if not self.org_skills_repo_url:
+            logger.warning(
+                "enable_org_skills is True but org_skills_repo_url is not set"
+            )
+            return self
+
+        try:
+            org_skills = load_org_skills(
+                repo_url=self.org_skills_repo_url,
+                branch=self.org_skills_branch,
+                auth_header=self.org_skills_auth_header,
+            )
+            existing_names = {skill.name for skill in self.skills}
+            for org_skill in org_skills:
+                if org_skill.name not in existing_names:
+                    self.skills.append(org_skill)
+                else:
+                    logger.warning(
+                        f"Skipping org skill '{org_skill.name}' "
+                        f"(already in explicit skills)"
+                    )
+        except Exception as e:
+            logger.warning(f"Failed to load org skills: {str(e)}")
+
+        return self
 
     @model_validator(mode="after")
     def _load_user_skills(self):

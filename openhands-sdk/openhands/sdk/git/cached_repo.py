@@ -37,6 +37,7 @@ class GitHelper:
         depth: int | None = 1,
         branch: str | None = None,
         timeout: int = 120,
+        extra_git_config: list[str] | None = None,
     ) -> None:
         """Clone a git repository.
 
@@ -50,11 +51,18 @@ class GitHelper:
                 to checkout arbitrary commits.
             branch: Branch/tag to checkout during clone.
             timeout: Timeout in seconds.
+            extra_git_config: Extra git config flags (e.g.,
+                ["http.extraHeader=Authorization: Bearer token"]). Each entry
+                is passed as ``git -c <entry>``.
 
         Raises:
             GitCommandError: If clone fails.
         """
-        cmd = ["git", "clone"]
+        cmd = ["git"]
+        if extra_git_config:
+            for config in extra_git_config:
+                cmd.extend(["-c", config])
+        cmd.append("clone")
 
         if depth is not None:
             cmd.extend(["--depth", str(depth)])
@@ -72,6 +80,7 @@ class GitHelper:
         remote: str = "origin",
         ref: str | None = None,
         timeout: int = 60,
+        extra_git_config: list[str] | None = None,
     ) -> None:
         """Fetch from remote.
 
@@ -80,11 +89,18 @@ class GitHelper:
             remote: Remote name.
             ref: Specific ref to fetch (optional).
             timeout: Timeout in seconds.
+            extra_git_config: Extra git config flags (e.g.,
+                ["http.extraHeader=Authorization: Bearer token"]). Each entry
+                is passed as ``git -c <entry>``.
 
         Raises:
             GitCommandError: If fetch fails.
         """
-        cmd = ["git", "fetch", remote]
+        cmd = ["git"]
+        if extra_git_config:
+            for config in extra_git_config:
+                cmd.extend(["-c", config])
+        cmd.extend(["fetch", remote])
         if ref:
             cmd.append(ref)
 
@@ -197,6 +213,7 @@ def try_cached_clone_or_update(
     update: bool = True,
     git_helper: GitHelper | None = None,
     lock_timeout: float = DEFAULT_LOCK_TIMEOUT,
+    extra_git_config: list[str] | None = None,
 ) -> Path | None:
     """Clone or update a git repository in a cache directory.
 
@@ -223,6 +240,9 @@ def try_cached_clone_or_update(
         update: If True and repo exists, fetch and update it. If False, skip fetch.
         git_helper: GitHelper instance for git operations. If None, creates one.
         lock_timeout: Timeout in seconds for acquiring the lock. Default is 5 minutes.
+        extra_git_config: Extra git config flags for authenticated operations
+            (e.g., ["http.extraHeader=Authorization: Bearer token"]). Passed
+            through to clone and fetch commands.
 
     Returns:
         Path to the local repository if successful, None on failure.
@@ -239,7 +259,9 @@ def try_cached_clone_or_update(
 
     try:
         with lock.acquire(timeout=lock_timeout):
-            return _do_clone_or_update(url, repo_path, ref, update, git)
+            return _do_clone_or_update(
+                url, repo_path, ref, update, git, extra_git_config
+            )
     except Timeout:
         logger.warning(
             f"Timed out waiting for lock on {repo_path} after {lock_timeout}s"
@@ -259,6 +281,7 @@ def _do_clone_or_update(
     ref: str | None,
     update: bool,
     git: GitHelper,
+    extra_git_config: list[str] | None = None,
 ) -> Path:
     """Perform the actual clone or update operation (called while holding lock).
 
@@ -268,6 +291,7 @@ def _do_clone_or_update(
         ref: Branch, tag, or commit to checkout.
         update: Whether to update existing repos.
         git: GitHelper instance.
+        extra_git_config: Extra git config flags for clone/fetch.
 
     Returns:
         Path to the repository.
@@ -278,7 +302,7 @@ def _do_clone_or_update(
     if repo_path.exists() and (repo_path / ".git").exists():
         if update:
             logger.debug(f"Updating repository at {repo_path}")
-            _update_repository(repo_path, ref, git)
+            _update_repository(repo_path, ref, git, extra_git_config)
         elif ref:
             logger.debug(f"Checking out ref {ref} at {repo_path}")
             _checkout_ref(repo_path, ref, git)
@@ -286,7 +310,7 @@ def _do_clone_or_update(
             logger.debug(f"Using cached repository at {repo_path}")
     else:
         logger.info(f"Cloning repository from {url}")
-        _clone_repository(url, repo_path, ref, git)
+        _clone_repository(url, repo_path, ref, git, extra_git_config)
 
     return repo_path
 
@@ -296,6 +320,7 @@ def _clone_repository(
     dest: Path,
     branch: str | None,
     git: GitHelper,
+    extra_git_config: list[str] | None = None,
 ) -> None:
     """Clone a git repository.
 
@@ -304,12 +329,13 @@ def _clone_repository(
         dest: Destination path.
         branch: Branch to checkout (optional).
         git: GitHelper instance.
+        extra_git_config: Extra git config flags for clone.
     """
     # Remove existing directory if it exists but isn't a valid git repo
     if dest.exists():
         shutil.rmtree(dest)
 
-    git.clone(url, dest, depth=1, branch=branch)
+    git.clone(url, dest, depth=1, branch=branch, extra_git_config=extra_git_config)
     logger.debug(f"Repository cloned to {dest}")
 
 
@@ -317,6 +343,7 @@ def _update_repository(
     repo_path: Path,
     ref: str | None,
     git: GitHelper,
+    extra_git_config: list[str] | None = None,
 ) -> None:
     """Update an existing cached repository to the latest remote state.
 
@@ -342,9 +369,10 @@ def _update_repository(
         ref: Branch, tag, or commit to update to. If None, uses current branch
             or falls back to the remote's default branch.
         git: GitHelper instance.
+        extra_git_config: Extra git config flags for fetch.
     """
     # Fetch from origin - if this fails, we still have a usable (stale) cache
-    if not _try_fetch(repo_path, git):
+    if not _try_fetch(repo_path, git, extra_git_config):
         return
 
     # If a specific ref was requested, check it out
@@ -364,10 +392,14 @@ def _update_repository(
     _recover_from_detached_head(repo_path, git)
 
 
-def _try_fetch(repo_path: Path, git: GitHelper) -> bool:
+def _try_fetch(
+    repo_path: Path,
+    git: GitHelper,
+    extra_git_config: list[str] | None = None,
+) -> bool:
     """Attempt to fetch from origin. Returns True on success, False on failure."""
     try:
-        git.fetch(repo_path)
+        git.fetch(repo_path, extra_git_config=extra_git_config)
         return True
     except GitCommandError as e:
         logger.warning(f"Failed to fetch updates: {e}. Using cached version.")
