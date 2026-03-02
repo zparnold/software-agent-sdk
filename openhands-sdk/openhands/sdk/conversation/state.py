@@ -1,7 +1,7 @@
 # state.py
 import json
 from collections.abc import Sequence
-from enum import Enum
+from enum import StrEnum
 from pathlib import Path
 from typing import Any, Self
 
@@ -16,6 +16,7 @@ from openhands.sdk.conversation.secret_registry import SecretRegistry
 from openhands.sdk.conversation.types import ConversationCallbackType, ConversationID
 from openhands.sdk.event import ActionEvent, ObservationEvent, UserRejectObservation
 from openhands.sdk.event.base import Event
+from openhands.sdk.event.types import EventID
 from openhands.sdk.io import FileStore, InMemoryFileStore, LocalFileStore
 from openhands.sdk.logger import get_logger
 from openhands.sdk.security.analyzer import SecurityAnalyzerBase
@@ -32,7 +33,7 @@ from openhands.sdk.workspace.base import BaseWorkspace
 logger = get_logger(__name__)
 
 
-class ConversationExecutionStatus(str, Enum):
+class ConversationExecutionStatus(StrEnum):
     """Enum representing the current execution state of the conversation."""
 
     IDLE = "idle"  # Conversation is ready to receive tasks
@@ -128,6 +129,17 @@ class ConversationState(OpenHandsModel):
     blocked_messages: dict[str, str] = Field(
         default_factory=dict,
         description="Messages blocked by UserPromptSubmit hooks, keyed by message ID",
+    )
+
+    # Track the most recent user MessageEvent ID to avoid event log scans.
+    last_user_message_id: EventID | None = Field(
+        default=None,
+        description=(
+            "Most recent user MessageEvent id for hook block checks. "
+            "Updated when user messages are emitted so Agent.step can pop "
+            "blocked_messages without scanning the event log. If None, "
+            "hook-blocked checks are skipped (legacy conversations)."
+        ),
     )
 
     # Conversation statistics for LLM usage tracking

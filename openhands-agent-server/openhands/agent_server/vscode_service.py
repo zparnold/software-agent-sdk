@@ -18,6 +18,7 @@ class VSCodeService:
         self,
         port: int = 8001,
         connection_token: str | None = None,
+        server_base_path: str | None = None,
     ):
         """Initialize VSCode service.
 
@@ -26,9 +27,11 @@ class VSCodeService:
             workspace_path: Path to the workspace directory
             create_workspace: Whether to create the workspace directory if it doesn't
                 exist
+            server_base_path: Base path for the server (used in path-based routing)
         """
         self.port: int = port
         self.connection_token: str | None = connection_token
+        self.server_base_path: str | None = server_base_path
         self.process: asyncio.subprocess.Process | None = None
         self.openvscode_server_root: Path = Path("/openhands/.openvscode-server")
         self.extensions_dir: Path = self.openvscode_server_root / "extensions"
@@ -147,15 +150,11 @@ class VSCodeService:
             if self.extensions_dir.exists()
             else ""
         )
-
-        # Get runtime ID from environment to construct base path for proxy
-        runtime_id = os.getenv("OH_RUNTIME_ID", "")
         base_path_arg = (
-            f"--server-base-path /sandbox/{runtime_id}/vscode "
-            if runtime_id
+            f"--server-base-path {self.server_base_path} "
+            if self.server_base_path
             else ""
         )
-
         cmd = (
             f"exec {self.openvscode_server_root}/bin/openvscode-server "
             f"--host 0.0.0.0 "
@@ -239,6 +238,8 @@ def get_vscode_service() -> VSCodeService | None:
             if config.session_api_keys:
                 connection_token = config.session_api_keys[0]
             _vscode_service = VSCodeService(
-                port=config.vscode_port, connection_token=connection_token
+                port=config.vscode_port,
+                connection_token=connection_token,
+                server_base_path=config.vscode_base_path,
             )
     return _vscode_service

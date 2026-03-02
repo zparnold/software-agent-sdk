@@ -112,8 +112,8 @@ def test_search_conversations_default_params(
     mock_conversation_service.search_conversations.return_value = mock_page
 
     # Override the dependency
-    client.app.dependency_overrides[get_conversation_service] = (
-        lambda: mock_conversation_service
+    client.app.dependency_overrides[get_conversation_service] = lambda: (
+        mock_conversation_service
     )
 
     try:
@@ -146,8 +146,8 @@ def test_search_conversations_with_all_params(
     mock_conversation_service.search_conversations.return_value = mock_page
 
     # Override the dependency
-    client.app.dependency_overrides[get_conversation_service] = (
-        lambda: mock_conversation_service
+    client.app.dependency_overrides[get_conversation_service] = lambda: (
+        mock_conversation_service
     )
 
     try:
@@ -180,8 +180,8 @@ def test_search_conversations_with_all_params(
 def test_search_conversations_limit_validation(client, mock_conversation_service):
     """Test search_conversations endpoint with invalid limit values."""
 
-    client.app.dependency_overrides[get_conversation_service] = (
-        lambda: mock_conversation_service
+    client.app.dependency_overrides[get_conversation_service] = lambda: (
+        mock_conversation_service
     )
 
     try:
@@ -211,8 +211,8 @@ def test_search_conversations_empty_result(client, mock_conversation_service):
     mock_page = ConversationPage(items=[], next_page_id=None)
     mock_conversation_service.search_conversations.return_value = mock_page
 
-    client.app.dependency_overrides[get_conversation_service] = (
-        lambda: mock_conversation_service
+    client.app.dependency_overrides[get_conversation_service] = lambda: (
+        mock_conversation_service
     )
 
     try:
@@ -232,8 +232,8 @@ def test_count_conversations_no_filter(client, mock_conversation_service):
     # Mock the service response
     mock_conversation_service.count_conversations.return_value = 5
 
-    client.app.dependency_overrides[get_conversation_service] = (
-        lambda: mock_conversation_service
+    client.app.dependency_overrides[get_conversation_service] = lambda: (
+        mock_conversation_service
     )
 
     try:
@@ -254,8 +254,8 @@ def test_count_conversations_with_status_filter(client, mock_conversation_servic
     # Mock the service response
     mock_conversation_service.count_conversations.return_value = 3
 
-    client.app.dependency_overrides[get_conversation_service] = (
-        lambda: mock_conversation_service
+    client.app.dependency_overrides[get_conversation_service] = lambda: (
+        mock_conversation_service
     )
 
     try:
@@ -281,8 +281,8 @@ def test_count_conversations_zero_result(client, mock_conversation_service):
     # Mock zero count response
     mock_conversation_service.count_conversations.return_value = 0
 
-    client.app.dependency_overrides[get_conversation_service] = (
-        lambda: mock_conversation_service
+    client.app.dependency_overrides[get_conversation_service] = lambda: (
+        mock_conversation_service
     )
 
     try:
@@ -302,8 +302,8 @@ def test_get_conversation_success(
     # Mock the service response
     mock_conversation_service.get_conversation.return_value = sample_conversation_info
 
-    client.app.dependency_overrides[get_conversation_service] = (
-        lambda: mock_conversation_service
+    client.app.dependency_overrides[get_conversation_service] = lambda: (
+        mock_conversation_service
     )
 
     try:
@@ -330,8 +330,8 @@ def test_get_conversation_not_found(
     # Mock the service to return None (conversation not found)
     mock_conversation_service.get_conversation.return_value = None
 
-    client.app.dependency_overrides[get_conversation_service] = (
-        lambda: mock_conversation_service
+    client.app.dependency_overrides[get_conversation_service] = lambda: (
+        mock_conversation_service
     )
 
     try:
@@ -350,8 +350,8 @@ def test_get_conversation_not_found(
 def test_get_conversation_invalid_uuid(client, mock_conversation_service):
     """Test get_conversation endpoint with invalid UUID."""
 
-    client.app.dependency_overrides[get_conversation_service] = (
-        lambda: mock_conversation_service
+    client.app.dependency_overrides[get_conversation_service] = lambda: (
+        mock_conversation_service
     )
 
     try:
@@ -377,8 +377,8 @@ def test_batch_get_conversations_success(
         None,
     ]
 
-    client.app.dependency_overrides[get_conversation_service] = (
-        lambda: mock_conversation_service
+    client.app.dependency_overrides[get_conversation_service] = lambda: (
+        mock_conversation_service
     )
 
     try:
@@ -407,8 +407,8 @@ def test_batch_get_conversations_empty_list(client, mock_conversation_service):
     # Mock empty response
     mock_conversation_service.batch_get_conversations.return_value = []
 
-    client.app.dependency_overrides[get_conversation_service] = (
-        lambda: mock_conversation_service
+    client.app.dependency_overrides[get_conversation_service] = lambda: (
+        mock_conversation_service
     )
 
     try:
@@ -432,8 +432,8 @@ def test_batch_get_conversations_empty_list(client, mock_conversation_service):
 def test_batch_get_conversations_too_many_ids(client, mock_conversation_service):
     """Test batch_get_conversations endpoint with too many IDs."""
 
-    client.app.dependency_overrides[get_conversation_service] = (
-        lambda: mock_conversation_service
+    client.app.dependency_overrides[get_conversation_service] = lambda: (
+        mock_conversation_service
     )
 
     try:
@@ -454,8 +454,8 @@ def test_batch_get_conversations_too_many_ids(client, mock_conversation_service)
 def test_batch_get_conversations_invalid_uuid(client, mock_conversation_service):
     """Test batch_get_conversations endpoint with invalid UUID."""
 
-    client.app.dependency_overrides[get_conversation_service] = (
-        lambda: mock_conversation_service
+    client.app.dependency_overrides[get_conversation_service] = lambda: (
+        mock_conversation_service
     )
 
     try:
@@ -477,8 +477,8 @@ def test_start_conversation_new(
         True,
     )
 
-    client.app.dependency_overrides[get_conversation_service] = (
-        lambda: mock_conversation_service
+    client.app.dependency_overrides[get_conversation_service] = lambda: (
+        mock_conversation_service
     )
 
     try:
@@ -523,8 +523,8 @@ def test_start_conversation_existing(
         False,
     )
 
-    client.app.dependency_overrides[get_conversation_service] = (
-        lambda: mock_conversation_service
+    client.app.dependency_overrides[get_conversation_service] = lambda: (
+        mock_conversation_service
     )
 
     try:
@@ -556,8 +556,8 @@ def test_start_conversation_existing(
 def test_start_conversation_invalid_request(client, mock_conversation_service):
     """Test start_conversation endpoint with invalid request data."""
 
-    client.app.dependency_overrides[get_conversation_service] = (
-        lambda: mock_conversation_service
+    client.app.dependency_overrides[get_conversation_service] = lambda: (
+        mock_conversation_service
     )
 
     try:
@@ -582,8 +582,8 @@ def test_start_conversation_minimal_request(
         True,
     )
 
-    client.app.dependency_overrides[get_conversation_service] = (
-        lambda: mock_conversation_service
+    client.app.dependency_overrides[get_conversation_service] = lambda: (
+        mock_conversation_service
     )
 
     try:
@@ -617,8 +617,8 @@ def test_pause_conversation_success(
     # Mock the service response - pause successful
     mock_conversation_service.pause_conversation.return_value = True
 
-    client.app.dependency_overrides[get_conversation_service] = (
-        lambda: mock_conversation_service
+    client.app.dependency_overrides[get_conversation_service] = lambda: (
+        mock_conversation_service
     )
 
     try:
@@ -644,8 +644,8 @@ def test_pause_conversation_failure(
     # Mock the service response - pause failed
     mock_conversation_service.pause_conversation.return_value = False
 
-    client.app.dependency_overrides[get_conversation_service] = (
-        lambda: mock_conversation_service
+    client.app.dependency_overrides[get_conversation_service] = lambda: (
+        mock_conversation_service
     )
 
     try:
@@ -669,8 +669,8 @@ def test_delete_conversation_success(
     # Mock the service response - deletion successful
     mock_conversation_service.delete_conversation.return_value = True
 
-    client.app.dependency_overrides[get_conversation_service] = (
-        lambda: mock_conversation_service
+    client.app.dependency_overrides[get_conversation_service] = lambda: (
+        mock_conversation_service
     )
 
     try:
@@ -696,8 +696,8 @@ def test_delete_conversation_failure(
     # Mock the service response - deletion failed
     mock_conversation_service.delete_conversation.return_value = False
 
-    client.app.dependency_overrides[get_conversation_service] = (
-        lambda: mock_conversation_service
+    client.app.dependency_overrides[get_conversation_service] = lambda: (
+        mock_conversation_service
     )
 
     try:
@@ -722,8 +722,8 @@ def test_run_conversation_success(
     mock_conversation_service.get_event_service.return_value = mock_event_service
     mock_event_service.run.return_value = None  # Successful run
 
-    client.app.dependency_overrides[get_conversation_service] = (
-        lambda: mock_conversation_service
+    client.app.dependency_overrides[get_conversation_service] = lambda: (
+        mock_conversation_service
     )
 
     try:
@@ -750,8 +750,8 @@ def test_run_conversation_not_found(
     # Mock the service response - conversation not found
     mock_conversation_service.get_event_service.return_value = None
 
-    client.app.dependency_overrides[get_conversation_service] = (
-        lambda: mock_conversation_service
+    client.app.dependency_overrides[get_conversation_service] = lambda: (
+        mock_conversation_service
     )
 
     try:
@@ -776,8 +776,8 @@ def test_run_conversation_already_running(
     mock_conversation_service.get_event_service.return_value = mock_event_service
     mock_event_service.run.side_effect = ValueError("conversation_already_running")
 
-    client.app.dependency_overrides[get_conversation_service] = (
-        lambda: mock_conversation_service
+    client.app.dependency_overrides[get_conversation_service] = lambda: (
+        mock_conversation_service
     )
 
     try:
@@ -805,8 +805,8 @@ def test_run_conversation_other_error(
     mock_conversation_service.get_event_service.return_value = mock_event_service
     mock_event_service.run.side_effect = ValueError("some other error")
 
-    client.app.dependency_overrides[get_conversation_service] = (
-        lambda: mock_conversation_service
+    client.app.dependency_overrides[get_conversation_service] = lambda: (
+        mock_conversation_service
     )
 
     try:
@@ -828,8 +828,8 @@ def test_update_conversation_secrets_success(
     mock_conversation_service.get_event_service.return_value = mock_event_service
     mock_event_service.update_secrets.return_value = None
 
-    client.app.dependency_overrides[get_conversation_service] = (
-        lambda: mock_conversation_service
+    client.app.dependency_overrides[get_conversation_service] = lambda: (
+        mock_conversation_service
     )
 
     try:
@@ -866,8 +866,8 @@ def test_update_conversation_secrets_not_found(
     # Mock the service response - conversation not found
     mock_conversation_service.get_event_service.return_value = None
 
-    client.app.dependency_overrides[get_conversation_service] = (
-        lambda: mock_conversation_service
+    client.app.dependency_overrides[get_conversation_service] = lambda: (
+        mock_conversation_service
     )
 
     try:
@@ -898,8 +898,8 @@ def test_set_conversation_confirmation_policy_success(
     mock_conversation_service.get_event_service.return_value = mock_event_service
     mock_event_service.set_confirmation_policy.return_value = None
 
-    client.app.dependency_overrides[get_conversation_service] = (
-        lambda: mock_conversation_service
+    client.app.dependency_overrides[get_conversation_service] = lambda: (
+        mock_conversation_service
     )
 
     try:
@@ -931,8 +931,8 @@ def test_set_conversation_confirmation_policy_not_found(
     # Mock the service response - conversation not found
     mock_conversation_service.get_event_service.return_value = None
 
-    client.app.dependency_overrides[get_conversation_service] = (
-        lambda: mock_conversation_service
+    client.app.dependency_overrides[get_conversation_service] = lambda: (
+        mock_conversation_service
     )
 
     try:
@@ -961,8 +961,8 @@ def test_update_conversation_success(
     # Mock the service response - update successful
     mock_conversation_service.update_conversation.return_value = True
 
-    client.app.dependency_overrides[get_conversation_service] = (
-        lambda: mock_conversation_service
+    client.app.dependency_overrides[get_conversation_service] = lambda: (
+        mock_conversation_service
     )
 
     try:
@@ -993,8 +993,8 @@ def test_update_conversation_failure(
     # Mock the service response - update failed
     mock_conversation_service.update_conversation.return_value = False
 
-    client.app.dependency_overrides[get_conversation_service] = (
-        lambda: mock_conversation_service
+    client.app.dependency_overrides[get_conversation_service] = lambda: (
+        mock_conversation_service
     )
 
     try:
@@ -1019,8 +1019,8 @@ def test_update_conversation_invalid_title(
 ):
     """Test update_conversation endpoint with invalid title."""
 
-    client.app.dependency_overrides[get_conversation_service] = (
-        lambda: mock_conversation_service
+    client.app.dependency_overrides[get_conversation_service] = lambda: (
+        mock_conversation_service
     )
 
     try:
@@ -1047,13 +1047,12 @@ def test_generate_conversation_title_success(
 ):
     """Test generate_conversation_title endpoint with successful generation."""
 
-    # Mock the service response
     mock_conversation_service.generate_conversation_title.return_value = (
         "Generated Title"
     )
 
-    client.app.dependency_overrides[get_conversation_service] = (
-        lambda: mock_conversation_service
+    client.app.dependency_overrides[get_conversation_service] = lambda: (
+        mock_conversation_service
     )
 
     try:
@@ -1068,12 +1067,11 @@ def test_generate_conversation_title_success(
         data = response.json()
         assert data["title"] == "Generated Title"
 
-        # Verify service was called with correct parameters
         mock_conversation_service.generate_conversation_title.assert_called_once()
         call_args = mock_conversation_service.generate_conversation_title.call_args
         assert call_args[0][0] == sample_conversation_id
-        assert call_args[0][1] == 30  # max_length
-        assert call_args[0][2] is None  # llm (default)
+        assert call_args[0][1] == 30
+        assert call_args[0][2] is None
     finally:
         client.app.dependency_overrides.clear()
 
@@ -1083,13 +1081,12 @@ def test_generate_conversation_title_with_llm(
 ):
     """Test generate_conversation_title endpoint with custom LLM."""
 
-    # Mock the service response
     mock_conversation_service.generate_conversation_title.return_value = (
         "Custom LLM Title"
     )
 
-    client.app.dependency_overrides[get_conversation_service] = (
-        lambda: mock_conversation_service
+    client.app.dependency_overrides[get_conversation_service] = lambda: (
+        mock_conversation_service
     )
 
     try:
@@ -1111,12 +1108,11 @@ def test_generate_conversation_title_with_llm(
         data = response.json()
         assert data["title"] == "Custom LLM Title"
 
-        # Verify service was called
         mock_conversation_service.generate_conversation_title.assert_called_once()
         call_args = mock_conversation_service.generate_conversation_title.call_args
         assert call_args[0][0] == sample_conversation_id
-        assert call_args[0][1] == 40  # max_length
-        assert call_args[0][2] is not None  # llm provided
+        assert call_args[0][1] == 40
+        assert call_args[0][2] is not None
     finally:
         client.app.dependency_overrides.clear()
 
@@ -1126,11 +1122,10 @@ def test_generate_conversation_title_failure(
 ):
     """Test generate_conversation_title endpoint with generation failure."""
 
-    # Mock the service response - generation failed
     mock_conversation_service.generate_conversation_title.return_value = None
 
-    client.app.dependency_overrides[get_conversation_service] = (
-        lambda: mock_conversation_service
+    client.app.dependency_overrides[get_conversation_service] = lambda: (
+        mock_conversation_service
     )
 
     try:
@@ -1141,9 +1136,7 @@ def test_generate_conversation_title_failure(
             json=request_data,
         )
 
-        assert response.status_code == 500  # Internal Server Error
-
-        # Verify service was called
+        assert response.status_code == 500
         mock_conversation_service.generate_conversation_title.assert_called_once()
     finally:
         client.app.dependency_overrides.clear()
@@ -1154,28 +1147,39 @@ def test_generate_conversation_title_invalid_params(
 ):
     """Test generate_conversation_title endpoint with invalid parameters."""
 
-    client.app.dependency_overrides[get_conversation_service] = (
-        lambda: mock_conversation_service
+    client.app.dependency_overrides[get_conversation_service] = lambda: (
+        mock_conversation_service
     )
 
     try:
-        # Test with max_length too low
         request_data = {"max_length": 0}
         response = client.post(
             f"/api/conversations/{sample_conversation_id}/generate_title",
             json=request_data,
         )
-        assert response.status_code == 422  # Validation error
+        assert response.status_code == 422
 
-        # Test with max_length too high
         request_data = {"max_length": 201}
         response = client.post(
             f"/api/conversations/{sample_conversation_id}/generate_title",
             json=request_data,
         )
-        assert response.status_code == 422  # Validation error
+        assert response.status_code == 422
     finally:
         client.app.dependency_overrides.clear()
+
+
+def test_generate_title_endpoint_is_deprecated_in_openapi(client):
+    response = client.get("/openapi.json")
+    assert response.status_code == 200
+
+    openapi_schema = response.json()
+    operation = openapi_schema["paths"][
+        "/api/conversations/{conversation_id}/generate_title"
+    ]["post"]
+
+    assert operation.get("deprecated") is True
+    assert "scheduled for removal" in operation["description"]
 
 
 def test_start_conversation_with_tool_module_qualnames(
@@ -1190,8 +1194,8 @@ def test_start_conversation_with_tool_module_qualnames(
     )
 
     # Override the dependency
-    client.app.dependency_overrides[get_conversation_service] = (
-        lambda: mock_conversation_service
+    client.app.dependency_overrides[get_conversation_service] = lambda: (
+        mock_conversation_service
     )
 
     try:
@@ -1250,8 +1254,8 @@ def test_start_conversation_without_tool_module_qualnames(
     )
 
     # Override the dependency
-    client.app.dependency_overrides[get_conversation_service] = (
-        lambda: mock_conversation_service
+    client.app.dependency_overrides[get_conversation_service] = lambda: (
+        mock_conversation_service
     )
 
     try:
@@ -1284,6 +1288,75 @@ def test_start_conversation_without_tool_module_qualnames(
         client.app.dependency_overrides.clear()
 
 
+def test_start_conversation_autotitle_defaults_to_true(
+    client, mock_conversation_service, sample_conversation_info
+):
+    """autotitle defaults to True when not supplied in the request."""
+    mock_conversation_service.start_conversation.return_value = (
+        sample_conversation_info,
+        True,
+    )
+    client.app.dependency_overrides[get_conversation_service] = lambda: (
+        mock_conversation_service
+    )
+
+    try:
+        request_data = {
+            "agent": {
+                "llm": {
+                    "model": "gpt-4o",
+                    "api_key": "test-key",
+                    "usage_id": "test-llm",
+                },
+                "tools": [{"name": "TerminalTool"}],
+            },
+            "workspace": {"working_dir": "/tmp/test"},
+        }
+        response = client.post("/api/conversations", json=request_data)
+
+        assert response.status_code == 201
+        call_args = mock_conversation_service.start_conversation.call_args
+        request_arg = call_args[0][0]
+        assert request_arg.autotitle is True
+    finally:
+        client.app.dependency_overrides.clear()
+
+
+def test_start_conversation_autotitle_false(
+    client, mock_conversation_service, sample_conversation_info
+):
+    """autotitle=False is forwarded correctly to the service."""
+    mock_conversation_service.start_conversation.return_value = (
+        sample_conversation_info,
+        True,
+    )
+    client.app.dependency_overrides[get_conversation_service] = lambda: (
+        mock_conversation_service
+    )
+
+    try:
+        request_data = {
+            "agent": {
+                "llm": {
+                    "model": "gpt-4o",
+                    "api_key": "test-key",
+                    "usage_id": "test-llm",
+                },
+                "tools": [{"name": "TerminalTool"}],
+            },
+            "workspace": {"working_dir": "/tmp/test"},
+            "autotitle": False,
+        }
+        response = client.post("/api/conversations", json=request_data)
+
+        assert response.status_code == 201
+        call_args = mock_conversation_service.start_conversation.call_args
+        request_arg = call_args[0][0]
+        assert request_arg.autotitle is False
+    finally:
+        client.app.dependency_overrides.clear()
+
+
 def test_set_conversation_security_analyzer_success(
     client,
     sample_conversation_id,
@@ -1297,8 +1370,8 @@ def test_set_conversation_security_analyzer_success(
     mock_event_service.set_security_analyzer.return_value = None
 
     # Override dependency
-    client.app.dependency_overrides[get_conversation_service] = (
-        lambda: mock_conversation_service
+    client.app.dependency_overrides[get_conversation_service] = lambda: (
+        mock_conversation_service
     )
 
     # Make request
@@ -1327,8 +1400,8 @@ def test_set_conversation_security_analyzer_with_none(
     mock_event_service.set_security_analyzer.return_value = None
 
     # Override dependency
-    client.app.dependency_overrides[get_conversation_service] = (
-        lambda: mock_conversation_service
+    client.app.dependency_overrides[get_conversation_service] = lambda: (
+        mock_conversation_service
     )
 
     # Make request with None analyzer
@@ -1357,8 +1430,8 @@ def test_security_analyzer_endpoint_with_malformed_analyzer_data(
     mock_event_service.set_security_analyzer.return_value = None
 
     # Override dependency
-    client.app.dependency_overrides[get_conversation_service] = (
-        lambda: mock_conversation_service
+    client.app.dependency_overrides[get_conversation_service] = lambda: (
+        mock_conversation_service
     )
 
     # Test with invalid analyzer type (should be rejected)
@@ -1383,8 +1456,8 @@ def test_update_secrets_with_string_values(
     mock_event_service.update_secrets.return_value = None
 
     # Override dependency
-    client.app.dependency_overrides[get_conversation_service] = (
-        lambda: mock_conversation_service
+    client.app.dependency_overrides[get_conversation_service] = lambda: (
+        mock_conversation_service
     )
 
     try:
@@ -1425,8 +1498,8 @@ def test_update_secrets_with_mixed_formats(
     mock_event_service.update_secrets.return_value = None
 
     # Override dependency
-    client.app.dependency_overrides[get_conversation_service] = (
-        lambda: mock_conversation_service
+    client.app.dependency_overrides[get_conversation_service] = lambda: (
+        mock_conversation_service
     )
 
     try:
