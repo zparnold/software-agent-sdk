@@ -556,21 +556,23 @@ def _entrypoint_script(*, strip_duplicate_argv: bool) -> str:
         "#!/bin/bash",
         "set -eo pipefail",
         "",
-        "# Merge any CA certs mounted at /usr/local/share/ca-certificates (e.g. by Kubernetes",
-        "# when CA_CERT_SECRET_NAME is set) into the system trust store so outbound HTTPS",
-        "# (e.g. to Azure OpenAI, webhook callbacks) can verify corporate/internal TLS.",
-        'if command -v update-ca-certificates &>/dev/null; then',
+        "# Merge CA certs mounted at /usr/local/share/ca-certificates",
+        "# (e.g. by K8s CA_CERT_SECRET_NAME) into the system trust",
+        "# store so outbound HTTPS can verify internal TLS.",
+        "if command -v update-ca-certificates &>/dev/null; then",
         "  update-ca-certificates",
         "fi",
         "",
     ]
     if strip_duplicate_argv:
-        lines.extend([
-            "# Some runtimes (e.g. K8s) pass image CMD then request Args, producing a duplicate",
-            "# leading argv; drop one so we don't pass the binary path as an argument.",
-            'while [ "$#" -ge 2 ] && [ "$1" = "$2" ]; do shift; done',
-            "",
-        ])
+        lines.extend(
+            [
+                "# Some runtimes (e.g. K8s) pass CMD then Args,",
+                "# producing a duplicate leading argv; drop one.",
+                'while [ "$#" -ge 2 ] && [ "$1" = "$2" ]; do shift; done',
+                "",
+            ]
+        )
     lines.append('exec "$@"')
     return "\n".join(lines) + "\n"
 
@@ -610,7 +612,8 @@ def build(opts: BuildOptions) -> list[str]:
                 (docker_dir / "entrypoint.sh").chmod(0o755)
                 break
         logger.debug(
-            f"[build] Wrote entrypoint.sh (strip_duplicate_argv={opts.strip_duplicate_argv})"
+            "[build] Wrote entrypoint.sh"
+            f" (strip_duplicate_argv={opts.strip_duplicate_argv})"
         )
 
     args = [
@@ -832,7 +835,9 @@ def main(argv: list[str]) -> int:
                 encoding="utf-8",
             )
             ep.chmod(0o755)
-            docker_dir = ctx / "openhands-agent-server" / "openhands" / "agent_server" / "docker"
+            docker_dir = (
+                ctx / "openhands-agent-server" / "openhands" / "agent_server" / "docker"
+            )
             if docker_dir.exists():
                 (docker_dir / "entrypoint.sh").write_text(
                     _entrypoint_script(strip_duplicate_argv=opts.strip_duplicate_argv),

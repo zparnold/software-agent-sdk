@@ -192,7 +192,7 @@ def test_llm_config_post_init_reasoning_effort_default():
 
 
 def test_llm_config_post_init_azure_api_version():
-    """Test that Azure models get default API version (Responses API requires 2025-03-01-preview+)."""
+    """Test that Azure models get default API version."""
     config = LLM(model="azure/gpt-4o-mini", usage_id="test-llm")
     assert config.api_version == "2025-03-01-preview"
 
@@ -200,7 +200,7 @@ def test_llm_config_post_init_azure_api_version():
     config = LLM(model="gpt-4o-mini", usage_id="test-llm")
     assert config.api_version is None
 
-    # Test that explicit API version is preserved (except legacy 2024-12-01-preview, which is upgraded)
+    # Explicit API version is preserved (except legacy 2024-12-01-preview)
     config = LLM(
         model="azure/gpt-4o-mini", api_version="custom-version", usage_id="test-llm"
     )

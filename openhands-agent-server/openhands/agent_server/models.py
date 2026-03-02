@@ -1,6 +1,6 @@
 from abc import ABC
 from datetime import datetime
-from enum import Enum
+from enum import Enum, StrEnum
 from typing import Any, Literal
 from uuid import uuid4
 
@@ -25,7 +25,7 @@ from openhands.sdk.utils.models import DiscriminatedUnionMixin, OpenHandsModel
 from openhands.sdk.workspace import LocalWorkspace
 
 
-class ConversationSortOrder(str, Enum):
+class ConversationSortOrder(StrEnum):
     """Enum for conversation sorting options."""
 
     CREATED_AT = "CREATED_AT"
@@ -34,7 +34,7 @@ class ConversationSortOrder(str, Enum):
     UPDATED_AT_DESC = "UPDATED_AT_DESC"
 
 
-class EventSortOrder(str, Enum):
+class EventSortOrder(StrEnum):
     """Enum for event sorting options."""
 
     TIMESTAMP = "TIMESTAMP"
@@ -124,6 +124,13 @@ class StartConversationRequest(BaseModel):
             "UserPromptSubmit, Stop, etc.). If both hook_config and plugins are "
             "provided, they are merged with explicit hooks running before plugin "
             "hooks."
+        ),
+    )
+    autotitle: bool = Field(
+        default=True,
+        description=(
+            "If true, automatically generate a title for the conversation from "
+            "the first user message using the conversation's LLM."
         ),
     )
 
