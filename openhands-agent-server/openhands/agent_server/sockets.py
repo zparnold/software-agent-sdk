@@ -119,6 +119,11 @@ async def events_socket(
         while True:
             try:
                 data = await websocket.receive_json()
+                # Handle application-level heartbeat (JSON data frames survive
+                # corporate proxies that strip WebSocket control frames)
+                if isinstance(data, dict) and data.get("type") == "ping":
+                    await websocket.send_json({"type": "pong"})
+                    continue
                 logger.info(f"Received message: {conversation_id}")
                 message = Message.model_validate(data)
                 await event_service.send_message(message, True)
@@ -161,6 +166,10 @@ async def bash_events_socket(
             try:
                 # Keep the connection alive and handle any incoming messages
                 data = await websocket.receive_json()
+                # Handle application-level heartbeat
+                if isinstance(data, dict) and data.get("type") == "ping":
+                    await websocket.send_json({"type": "pong"})
+                    continue
                 logger.info("Received bash request")
                 request = ExecuteBashRequest.model_validate(data)
                 await bash_event_service.start_bash_command(request)
