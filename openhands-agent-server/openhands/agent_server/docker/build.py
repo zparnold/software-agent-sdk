@@ -593,28 +593,27 @@ def build(opts: BuildOptions) -> list[str]:
     ctx = _make_build_context(opts.sdk_project_root)
     logger.info(f"[build] Clean build context: {ctx}")
 
-    # For binary targets, inject entrypoint.sh so COPY in Dockerfile finds it,
-    # and so it appears under .../docker/ in the image (builder copies context).
+    # Inject entrypoint.sh so COPY in Dockerfile finds it for all targets.
+    # All targets now use entrypoint.sh for CA cert merging + exec "$@".
     # Content is generated here (strip_duplicate_argv controlled by flag).
-    if opts.target in ("binary", "binary-minimal"):
-        script = _entrypoint_script(strip_duplicate_argv=opts.strip_duplicate_argv)
-        # At context root for Dockerfile: COPY entrypoint.sh /openhands/entrypoint.sh
-        (ctx / "entrypoint.sh").write_text(script, encoding="utf-8")
-        (ctx / "entrypoint.sh").chmod(0o755)
-        # Under .../docker/ so COPY --from=builder /agent-server places it in image
-        for rel in (
-            Path("openhands-agent-server") / "openhands" / "agent_server" / "docker",
-            Path("openhands") / "agent_server" / "docker",
-        ):
-            docker_dir = ctx / rel
-            if docker_dir.exists():
-                (docker_dir / "entrypoint.sh").write_text(script, encoding="utf-8")
-                (docker_dir / "entrypoint.sh").chmod(0o755)
-                break
-        logger.debug(
-            "[build] Wrote entrypoint.sh"
-            f" (strip_duplicate_argv={opts.strip_duplicate_argv})"
-        )
+    script = _entrypoint_script(strip_duplicate_argv=opts.strip_duplicate_argv)
+    # At context root for Dockerfile: COPY entrypoint.sh /openhands/entrypoint.sh
+    (ctx / "entrypoint.sh").write_text(script, encoding="utf-8")
+    (ctx / "entrypoint.sh").chmod(0o755)
+    # Under .../docker/ so COPY --from=builder /agent-server places it in image
+    for rel in (
+        Path("openhands-agent-server") / "openhands" / "agent_server" / "docker",
+        Path("openhands") / "agent_server" / "docker",
+    ):
+        docker_dir = ctx / rel
+        if docker_dir.exists():
+            (docker_dir / "entrypoint.sh").write_text(script, encoding="utf-8")
+            (docker_dir / "entrypoint.sh").chmod(0o755)
+            break
+    logger.debug(
+        "[build] Wrote entrypoint.sh"
+        f" (strip_duplicate_argv={opts.strip_duplicate_argv})"
+    )
 
     args = [
         "docker",
@@ -828,22 +827,22 @@ def main(argv: list[str]) -> int:
             include_versioned_tag=args.versioned_tag,
             strip_duplicate_argv=not getattr(args, "no_strip_duplicate_argv", False),
         )
-        if opts.target in ("binary", "binary-minimal"):
-            ep = ctx / "entrypoint.sh"
-            ep.write_text(
+        # All targets need entrypoint.sh for CA cert merging + exec "$@"
+        ep = ctx / "entrypoint.sh"
+        ep.write_text(
+            _entrypoint_script(strip_duplicate_argv=opts.strip_duplicate_argv),
+            encoding="utf-8",
+        )
+        ep.chmod(0o755)
+        docker_dir = (
+            ctx / "openhands-agent-server" / "openhands" / "agent_server" / "docker"
+        )
+        if docker_dir.exists():
+            (docker_dir / "entrypoint.sh").write_text(
                 _entrypoint_script(strip_duplicate_argv=opts.strip_duplicate_argv),
                 encoding="utf-8",
             )
-            ep.chmod(0o755)
-            docker_dir = (
-                ctx / "openhands-agent-server" / "openhands" / "agent_server" / "docker"
-            )
-            if docker_dir.exists():
-                (docker_dir / "entrypoint.sh").write_text(
-                    _entrypoint_script(strip_duplicate_argv=opts.strip_duplicate_argv),
-                    encoding="utf-8",
-                )
-                (docker_dir / "entrypoint.sh").chmod(0o755)
+            (docker_dir / "entrypoint.sh").chmod(0o755)
 
         # If running in GitHub Actions, write outputs directly to GITHUB_OUTPUT
         github_output = os.environ.get("GITHUB_OUTPUT")
