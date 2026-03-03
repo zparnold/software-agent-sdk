@@ -393,6 +393,7 @@ def test_file_download_generator_basic_flow(temp_dir):
 
     # Mock successful response
     download_response = Mock()
+    download_response.status_code = 200
     download_response.raise_for_status = Mock()
     download_response.content = b"downloaded content"
 
@@ -429,6 +430,7 @@ def test_file_download_generator_with_path_objects(temp_dir):
     )
 
     download_response = Mock()
+    download_response.status_code = 200
     download_response.raise_for_status = Mock()
     download_response.content = b"test content"
 
@@ -446,6 +448,7 @@ def test_file_download_generator_creates_directories(temp_dir):
     )
 
     download_response = Mock()
+    download_response.status_code = 200
     download_response.raise_for_status = Mock()
     download_response.content = b"test content"
 
@@ -467,14 +470,15 @@ def test_file_download_generator_creates_directories(temp_dir):
 
 
 def test_file_download_generator_http_error():
-    """Test _file_download_generator handles HTTP errors."""
+    """Test _file_download_generator handles HTTP errors (5xx server errors)."""
     mixin = RemoteWorkspaceMixinHelper(
         host="http://localhost:8000", working_dir="workspace"
     )
 
     download_response = Mock()
+    download_response.status_code = 500
     download_response.raise_for_status.side_effect = httpx.HTTPStatusError(
-        "File not found", request=Mock(), response=Mock()
+        "Internal server error", request=Mock(), response=Mock()
     )
 
     generator = mixin._file_download_generator(
@@ -491,7 +495,145 @@ def test_file_download_generator_http_error():
     except StopIteration as e:
         result = e.value
         assert result.success is False
+        assert "Internal server error" in result.error
+
+
+def test_file_download_generator_400_directory_path():
+    """Test _file_download_generator returns clear error when path is a directory.
+
+    This is a regression test for the issue where agents got stuck in a retry
+    loop because the error message did not explain that the path was a directory,
+    not a file. The server returns 400 with detail 'Path is not a file'.
+    """
+    mixin = RemoteWorkspaceMixinHelper(
+        host="http://localhost:8000", working_dir="workspace"
+    )
+
+    # Simulate the server returning 400 with a JSON detail message
+    download_response = Mock()
+    download_response.status_code = 400
+    download_response.json.return_value = {"detail": "Path is not a file"}
+
+    generator = mixin._file_download_generator("/workspace/project/helm", "/local/helm")
+
+    # Get download request
+    next(generator)
+
+    # Send 400 response
+    try:
+        generator.send(download_response)
+        assert False, "Generator should have stopped"
+    except StopIteration as e:
+        result = e.value
+        assert result.success is False
+        assert "Path is not a file" in result.error
+        assert "400" in result.error
+        assert result.source_path == "/workspace/project/helm"
+        assert result.destination_path == "/local/helm"
+
+
+def test_file_download_generator_404_not_found():
+    """Test _file_download_generator returns clear error when file not found."""
+    mixin = RemoteWorkspaceMixinHelper(
+        host="http://localhost:8000", working_dir="workspace"
+    )
+
+    download_response = Mock()
+    download_response.status_code = 404
+    download_response.json.return_value = {"detail": "File not found"}
+
+    generator = mixin._file_download_generator(
+        "/remote/nonexistent.txt", "/local/file.txt"
+    )
+
+    next(generator)
+
+    try:
+        generator.send(download_response)
+        assert False, "Generator should have stopped"
+    except StopIteration as e:
+        result = e.value
+        assert result.success is False
         assert "File not found" in result.error
+        assert "404" in result.error
+
+
+def test_file_download_generator_400_non_json_response():
+    """Test _file_download_generator handles 400 with non-JSON body."""
+    mixin = RemoteWorkspaceMixinHelper(
+        host="http://localhost:8000", working_dir="workspace"
+    )
+
+    download_response = Mock()
+    download_response.status_code = 400
+    download_response.json.side_effect = ValueError("not json")
+    download_response.text = "Bad Request: path is a directory"
+
+    generator = mixin._file_download_generator("/workspace/project/helm", "/local/helm")
+
+    next(generator)
+
+    try:
+        generator.send(download_response)
+        assert False, "Generator should have stopped"
+    except StopIteration as e:
+        result = e.value
+        assert result.success is False
+        assert "Bad Request: path is a directory" in result.error
+        assert "400" in result.error
+
+
+def test_file_download_generator_400_empty_body():
+    """Test _file_download_generator handles 400 with empty body."""
+    mixin = RemoteWorkspaceMixinHelper(
+        host="http://localhost:8000", working_dir="workspace"
+    )
+
+    download_response = Mock()
+    download_response.status_code = 400
+    download_response.json.side_effect = ValueError("empty")
+    download_response.text = ""
+
+    generator = mixin._file_download_generator("/workspace/project/helm", "/local/helm")
+
+    next(generator)
+
+    try:
+        generator.send(download_response)
+        assert False, "Generator should have stopped"
+    except StopIteration as e:
+        result = e.value
+        assert result.success is False
+        assert "400" in result.error
+
+
+def test_extract_error_detail_json():
+    """Test _extract_error_detail extracts detail from JSON response."""
+    response = Mock()
+    response.json.return_value = {"detail": "Path is not a file"}
+
+    detail = RemoteWorkspaceMixin._extract_error_detail(response)
+    assert detail == "Path is not a file"
+
+
+def test_extract_error_detail_text_fallback():
+    """Test _extract_error_detail falls back to response text."""
+    response = Mock()
+    response.json.side_effect = ValueError("not json")
+    response.text = "Bad Request"
+
+    detail = RemoteWorkspaceMixin._extract_error_detail(response)
+    assert detail == "Bad Request"
+
+
+def test_extract_error_detail_empty():
+    """Test _extract_error_detail returns empty string when no detail available."""
+    response = Mock()
+    response.json.side_effect = ValueError("not json")
+    response.text = ""
+
+    detail = RemoteWorkspaceMixin._extract_error_detail(response)
+    assert detail == ""
 
 
 def test_multiple_bash_output_events():
