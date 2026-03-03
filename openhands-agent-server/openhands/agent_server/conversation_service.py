@@ -510,7 +510,7 @@ class ConversationService:
             await event_service.subscribe_to_events(
                 AutoTitleSubscriber(service=event_service)
             )
-        asyncio.gather(
+        await asyncio.gather(
             *[
                 event_service.subscribe_to_events(
                     WebhookSubscriber(

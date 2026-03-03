@@ -365,23 +365,19 @@ class EventService:
     def _emit_event_from_thread(self, event: Event) -> None:
         """Helper to safely emit events from non-async contexts (e.g., callbacks).
 
-        This schedules event emission in the main event loop, making it safe to call
-        from callbacks that may run in different threads. Events are emitted through
-        the conversation's normal event flow to ensure they are persisted.
+        This publishes events directly to the PubSub from non-async contexts
+        (e.g., LLM telemetry callbacks running in the agent thread). Uses
+        run_coroutine_threadsafe which is explicitly thread-safe, avoiding the
+        FIFOLock contention that occurs when the agent thread holds the
+        conversation state lock during agent steps.
+
+        Events emitted this way (stats updates, LLM logs) are transient
+        streaming data — they are dispatched to WebSocket/webhook subscribers
+        but not persisted to the local EventLog. Stats are already tracked
+        in ConversationStats (persisted via base_state.json).
         """
-        if self._main_loop and self._main_loop.is_running() and self._conversation:
-            # Capture conversation reference for closure
-            conversation = self._conversation
-
-            # Wrap _on_event with lock acquisition to ensure thread-safe access
-            # to conversation state and event log during concurrent operations
-            def locked_on_event():
-                with conversation._state:
-                    conversation._on_event(event)
-
-            # Run the locked callback in an executor to ensure the event is
-            # both persisted and sent to WebSocket subscribers
-            self._main_loop.run_in_executor(None, locked_on_event)
+        if self._main_loop and self._main_loop.is_running():
+            asyncio.run_coroutine_threadsafe(self._pub_sub(event), self._main_loop)
 
     def _setup_llm_log_streaming(self, agent: AgentBase) -> None:
         """Configure LLM log callbacks to stream logs via events."""
