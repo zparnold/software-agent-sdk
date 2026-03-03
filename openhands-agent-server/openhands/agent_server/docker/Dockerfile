@@ -219,10 +219,10 @@ COPY --chown=${USERNAME}:${USERNAME} --from=builder /agent-server /agent-server
 # (the runtime API passes this path as args; binary target has the real binary here)
 USER root
 RUN ln -s /agent-server/.venv/bin/agent-server /usr/local/bin/openhands-agent-server
-# Entrypoint merges CA certs (update-ca-certificates) then exec "$@"
+# Entrypoint merges CA certs (update-ca-certificates needs root) then exec "$@"
 COPY entrypoint.sh /openhands/entrypoint.sh
 RUN chmod +x /openhands/entrypoint.sh
-USER ${USERNAME}
+COPY --chown=${USERNAME}:${USERNAME} --from=builder /agent-server /agent-server
 ENTRYPOINT ["/openhands/entrypoint.sh"]
 CMD ["/usr/local/bin/openhands-agent-server"]
 
@@ -233,10 +233,10 @@ COPY --chown=${USERNAME}:${USERNAME} --from=builder /agent-server /agent-server
 # Symlink so /usr/local/bin/openhands-agent-server works in source mode too
 USER root
 RUN ln -s /agent-server/.venv/bin/agent-server /usr/local/bin/openhands-agent-server
-# Entrypoint merges CA certs (update-ca-certificates) then exec "$@"
+# Entrypoint merges CA certs (update-ca-certificates needs root) then exec "$@"
 COPY entrypoint.sh /openhands/entrypoint.sh
 RUN chmod +x /openhands/entrypoint.sh
-USER ${USERNAME}
+COPY --chown=${USERNAME}:${USERNAME} --from=builder /agent-server /agent-server
 ENTRYPOINT ["/openhands/entrypoint.sh"]
 CMD ["/usr/local/bin/openhands-agent-server"]
 
