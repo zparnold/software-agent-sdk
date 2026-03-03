@@ -215,13 +215,30 @@ FROM base-image AS source
 ARG USERNAME
 ENV UV_PYTHON_INSTALL_DIR=/agent-server/uv-managed-python
 COPY --chown=${USERNAME}:${USERNAME} --from=builder /agent-server /agent-server
-ENTRYPOINT ["/agent-server/.venv/bin/python", "-m", "openhands.agent_server"]
+# Symlink so /usr/local/bin/openhands-agent-server works in source mode too
+# (the runtime API passes this path as args; binary target has the real binary here)
+USER root
+RUN ln -s /agent-server/.venv/bin/agent-server /usr/local/bin/openhands-agent-server
+# Entrypoint merges CA certs (update-ca-certificates) then exec "$@"
+COPY entrypoint.sh /openhands/entrypoint.sh
+RUN chmod +x /openhands/entrypoint.sh
+USER ${USERNAME}
+ENTRYPOINT ["/openhands/entrypoint.sh"]
+CMD ["/usr/local/bin/openhands-agent-server"]
 
 FROM base-image-minimal AS source-minimal
 ARG USERNAME
 ENV UV_PYTHON_INSTALL_DIR=/agent-server/uv-managed-python
 COPY --chown=${USERNAME}:${USERNAME} --from=builder /agent-server /agent-server
-ENTRYPOINT ["/agent-server/.venv/bin/python", "-m", "openhands.agent_server"]
+# Symlink so /usr/local/bin/openhands-agent-server works in source mode too
+USER root
+RUN ln -s /agent-server/.venv/bin/agent-server /usr/local/bin/openhands-agent-server
+# Entrypoint merges CA certs (update-ca-certificates) then exec "$@"
+COPY entrypoint.sh /openhands/entrypoint.sh
+RUN chmod +x /openhands/entrypoint.sh
+USER ${USERNAME}
+ENTRYPOINT ["/openhands/entrypoint.sh"]
+CMD ["/usr/local/bin/openhands-agent-server"]
 
 ############################
 # Target B: binary-runtime
