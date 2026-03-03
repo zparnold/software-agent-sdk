@@ -122,6 +122,8 @@ PROMPT_CACHE_RETENTION_MODELS: list[str] = [
     "!mini",
     # Re-allow the explicitly documented supported mini variant
     "gpt-5.1-codex-mini",
+    # Azure OpenAI does not support prompt_cache_retention
+    "!azure/",
 ]
 
 SUPPORTS_STOP_WORDS_FALSE_MODELS: list[str] = [

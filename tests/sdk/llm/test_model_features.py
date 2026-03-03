@@ -302,6 +302,10 @@ def test_force_string_serializer_full_model_names():
         ("litellm_proxy/openai/gpt-5-mini", False),
         ("openai/gpt-5.1-mini", False),
         ("openai/gpt-5-mini-2025-08-07", False),
+        # Azure OpenAI does not support prompt_cache_retention
+        ("azure/gpt-5.2", False),
+        ("azure/gpt-5", False),
+        ("azure/gpt-4.1", False),
     ],
 )
 def test_prompt_cache_retention_support(model, expected_retention):
