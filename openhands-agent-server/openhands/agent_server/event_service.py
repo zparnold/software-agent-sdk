@@ -493,6 +493,13 @@ class EventService:
         # Publish initial state update
         await self._publish_state_update()
 
+        # Emit current stats so webhooks can sync on startup/resume.
+        # Stats are only emitted during active LLM execution, so without
+        # this, resumed conversations would never backfill their cost data.
+        with state:
+            stats_event = ConversationStateUpdateEvent(key="stats", value=state.stats)
+        await self._pub_sub(stats_event)
+
     async def run(self):
         """Run the conversation asynchronously in the background.
 
