@@ -76,6 +76,33 @@ class TestWebSocketSubscriber:
         await subscriber(event)
 
         mock_websocket.send_json.assert_called_once()
+        # Generic exceptions don't set _closed flag
+        assert not subscriber._closed
+
+    @pytest.mark.asyncio
+    async def test_websocket_subscriber_closed_on_connection_error(
+        self, mock_websocket
+    ):
+        """Test that connection errors set _closed flag and stop further sends."""
+        mock_websocket.send_json.side_effect = RuntimeError(
+            "WebSocket is not connected"
+        )
+        subscriber = _WebSocketSubscriber(websocket=mock_websocket)
+        event = MessageEvent(
+            id="test_event",
+            source="user",
+            llm_message=Message(role="user", content=[TextContent(text="test")]),
+        )
+
+        # First call should mark subscriber as closed
+        await subscriber(event)
+        assert subscriber._closed
+        mock_websocket.send_json.assert_called_once()
+
+        # Second call should be skipped entirely
+        mock_websocket.send_json.reset_mock()
+        await subscriber(event)
+        mock_websocket.send_json.assert_not_called()
 
 
 class TestWebSocketDisconnectHandling:
@@ -228,11 +255,40 @@ class TestWebSocketDisconnectHandling:
         # send_message only takes a message parameter, no run parameter
 
     @pytest.mark.asyncio
+    async def test_websocket_not_connected_runtime_error_handled_as_disconnect(
+        self, mock_websocket, mock_event_service, sample_conversation_id
+    ):
+        """Test 'not connected' RuntimeError handled as disconnect."""
+        mock_websocket.receive_json.side_effect = RuntimeError(
+            "WebSocket is not connected"
+        )
+
+        with (
+            patch(
+                "openhands.agent_server.sockets.conversation_service"
+            ) as mock_conv_service,
+            patch("openhands.agent_server.sockets.get_default_config") as mock_config,
+        ):
+            mock_config.return_value.session_api_keys = None
+            mock_conv_service.get_event_service = AsyncMock(
+                return_value=mock_event_service
+            )
+
+            from openhands.agent_server.sockets import events_socket
+
+            # Should NOT raise — treated as a clean disconnect
+            await events_socket(
+                sample_conversation_id, mock_websocket, session_api_key=None
+            )
+
+        mock_event_service.unsubscribe_from_events.assert_called_once()
+
+    @pytest.mark.asyncio
     async def test_websocket_unsubscribe_in_finally_when_no_disconnect(
         self, mock_websocket, mock_event_service, sample_conversation_id
     ):
-        """Test that unsubscription happens in finally block when no disconnect."""
-        # Simulate a different kind of exception that doesn't trigger disconnect handler
+        """Test unsubscribe in finally for non-disconnect RuntimeError."""
+        # Use a RuntimeError that does NOT contain "not connected" — should still raise
         mock_websocket.receive_json.side_effect = RuntimeError("Unexpected error")
 
         with (
@@ -241,7 +297,6 @@ class TestWebSocketDisconnectHandling:
             ) as mock_conv_service,
             patch("openhands.agent_server.sockets.get_default_config") as mock_config,
         ):
-            # Mock config to not require authentication
             mock_config.return_value.session_api_keys = None
             mock_conv_service.get_event_service = AsyncMock(
                 return_value=mock_event_service

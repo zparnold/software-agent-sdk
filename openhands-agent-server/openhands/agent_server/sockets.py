@@ -132,6 +132,11 @@ async def events_socket(
                 # Exit the loop when websocket disconnects
                 return
             except Exception as e:
+                if isinstance(e, RuntimeError) and "not connected" in str(e).lower():
+                    logger.info(
+                        f"Event websocket disconnected (stale): {conversation_id}"
+                    )
+                    return
                 logger.exception("error_in_subscription", stack_info=True)
                 # For critical errors that indicate the websocket is broken, exit
                 if isinstance(e, (RuntimeError, ConnectionError)):
@@ -178,6 +183,9 @@ async def bash_events_socket(
                 logger.info("Bash websocket disconnected")
                 return
             except Exception as e:
+                if isinstance(e, RuntimeError) and "not connected" in str(e).lower():
+                    logger.info("Bash websocket disconnected (stale)")
+                    return
                 logger.exception("error_in_bash_event_subscription", stack_info=True)
                 # For critical errors that indicate the websocket is broken, exit
                 if isinstance(e, (RuntimeError, ConnectionError)):
@@ -187,10 +195,18 @@ async def bash_events_socket(
         await bash_event_service.unsubscribe_from_events(subscriber_id)
 
 
-async def _send_event(event: Event, websocket: WebSocket):
+async def _send_event(
+    event: Event,
+    websocket: WebSocket,
+    subscriber: "_WebSocketSubscriber | None" = None,
+):
     try:
         dumped = event.model_dump(mode="json")
         await websocket.send_json(dumped)
+    except (RuntimeError, ConnectionError, WebSocketDisconnect):
+        if subscriber is not None:
+            subscriber._closed = True
+        logger.warning("send_skipped_connection_closed: %s", type(event).__name__)
     except Exception:
         logger.exception("error_sending_event: %r", event, stack_info=True)
 
@@ -200,15 +216,26 @@ class _WebSocketSubscriber(Subscriber):
     """WebSocket subscriber for conversation events."""
 
     websocket: WebSocket
+    _closed: bool = False
 
     async def __call__(self, event: Event):
-        await _send_event(event, self.websocket)
+        if self._closed:
+            return
+        await _send_event(event, self.websocket, self)
 
 
-async def _send_bash_event(event: BashEventBase, websocket: WebSocket):
+async def _send_bash_event(
+    event: BashEventBase,
+    websocket: WebSocket,
+    subscriber: "_BashWebSocketSubscriber | None" = None,
+):
     try:
         dumped = event.model_dump(mode="json")
         await websocket.send_json(dumped)
+    except (RuntimeError, ConnectionError, WebSocketDisconnect):
+        if subscriber is not None:
+            subscriber._closed = True
+        logger.warning("send_skipped_bash_connection_closed: %s", type(event).__name__)
     except Exception:
         logger.exception("error_sending_bash_event: %r", event, stack_info=True)
 
@@ -218,6 +245,9 @@ class _BashWebSocketSubscriber(Subscriber[BashEventBase]):
     """WebSocket subscriber for bash events."""
 
     websocket: WebSocket
+    _closed: bool = False
 
     async def __call__(self, event: BashEventBase):
-        await _send_bash_event(event, self.websocket)
+        if self._closed:
+            return
+        await _send_bash_event(event, self.websocket, self)
