@@ -2,6 +2,7 @@ from openhands.sdk.context.skills.exceptions import SkillValidationError
 from openhands.sdk.context.skills.skill import (
     Skill,
     SkillResources,
+    load_available_skills,
     load_org_skills,
     load_project_skills,
     load_public_skills,
@@ -29,6 +30,7 @@ __all__ = [
     "KeywordTrigger",
     "TaskTrigger",
     "SkillKnowledge",
+    "load_available_skills",
     "load_skills_from_dir",
     "load_user_skills",
     "load_project_skills",
