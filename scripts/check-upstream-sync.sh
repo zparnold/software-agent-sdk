@@ -7,9 +7,10 @@
 # After a merge, run: ./scripts/check-upstream-sync.sh --mark
 # to update the marker to the current upstream/main HEAD.
 #
-# Usage: ./scripts/check-upstream-sync.sh [--quiet|--mark]
+# Usage: ./scripts/check-upstream-sync.sh [--quiet|--mark|--json]
 # --quiet: Only output if there are new commits (for cron notifications)
 # --mark:  Record current upstream/main HEAD as the last-synced point
+# --json:  Output machine-readable JSON (for consumption by categorize-upstream.sh)
 
 set -uo pipefail
 trap "" PIPE
@@ -60,7 +61,51 @@ if [ -z "${SYNC_BASE:-}" ]; then
 fi
 
 BEHIND=$(git rev-list --count "${SYNC_BASE}..${UPSTREAM_REMOTE}/${UPSTREAM_BRANCH}" 2>/dev/null || echo "0")
+AHEAD=$(git rev-list --count "${UPSTREAM_REMOTE}/${UPSTREAM_BRANCH}..${LOCAL_BRANCH}" 2>/dev/null || echo "0")
 
+# Categorize by area
+RANGE="${SYNC_BASE}..${UPSTREAM_REMOTE}/${UPSTREAM_BRANCH}"
+SDK_COUNT=$(git log --oneline --no-merges "$RANGE" -- 'openhands-sdk/' | wc -l)
+TOOLS_COUNT=$(git log --oneline --no-merges "$RANGE" -- 'openhands-tools/' | wc -l)
+SERVER_COUNT=$(git log --oneline --no-merges "$RANGE" -- 'openhands-agent-server/' | wc -l)
+WORKSPACE_COUNT=$(git log --oneline --no-merges "$RANGE" -- 'openhands-workspace/' | wc -l)
+CI_COUNT=$(git log --oneline --no-merges "$RANGE" -- '.github/' | wc -l)
+TESTS_COUNT=$(git log --oneline --no-merges "$RANGE" -- 'tests/' | wc -l)
+
+# Potential conflict check
+CUSTOM_FILES=$(git diff --name-only "${UPSTREAM_REMOTE}/${UPSTREAM_BRANCH}..${LOCAL_BRANCH}" 2>/dev/null)
+UPSTREAM_FILES=$(git diff --name-only "${SYNC_BASE}..${UPSTREAM_REMOTE}/${UPSTREAM_BRANCH}" 2>/dev/null)
+BOTH_MODIFIED=$(comm -12 <(echo "$CUSTOM_FILES" | sort) <(echo "$UPSTREAM_FILES" | sort))
+CONFLICT_COUNT=$(echo "$BOTH_MODIFIED" | grep -c . || true)
+
+# --- JSON output mode ---
+if [ "$ARG" = "--json" ]; then
+    CONFLICT_FILES_JSON="[]"
+    if [ "$CONFLICT_COUNT" -gt 0 ]; then
+        CONFLICT_FILES_JSON=$(echo "$BOTH_MODIFIED" | python3 -c 'import json,sys; print(json.dumps([l.strip() for l in sys.stdin if l.strip()]))')
+    fi
+    cat <<ENDJSON
+{
+  "behind": $BEHIND,
+  "ahead": $AHEAD,
+  "sync_base": "$SYNC_BASE",
+  "upstream_head": "$(git rev-parse "${UPSTREAM_REMOTE}/${UPSTREAM_BRANCH}")",
+  "breakdown": {
+    "sdk": $SDK_COUNT,
+    "tools": $TOOLS_COUNT,
+    "agent_server": $SERVER_COUNT,
+    "workspace": $WORKSPACE_COUNT,
+    "ci_cd": $CI_COUNT,
+    "tests": $TESTS_COUNT
+  },
+  "conflict_files_count": $CONFLICT_COUNT,
+  "conflict_files": $CONFLICT_FILES_JSON
+}
+ENDJSON
+    exit 0
+fi
+
+# --- Standard output mode ---
 if [ "$BEHIND" = "0" ]; then
     if [ "$ARG" != "--quiet" ]; then
         echo "$(date '+%Y-%m-%d %H:%M') | main is up to date with upstream/main"
@@ -78,7 +123,6 @@ echo "(since $(echo "$SYNC_BASE" | head -c 9))"
 echo ""
 
 # Show custom (ahead) commits
-AHEAD=$(git rev-list --count "${UPSTREAM_REMOTE}/${UPSTREAM_BRANCH}..${LOCAL_BRANCH}" 2>/dev/null || echo "0")
 if [ "$AHEAD" -gt 0 ]; then
     echo "Custom commits (ahead of upstream): $AHEAD"
     git log --oneline --no-merges "${UPSTREAM_REMOTE}/${UPSTREAM_BRANCH}..${LOCAL_BRANCH}"
@@ -93,15 +137,6 @@ if [ "$BEHIND" -gt 30 ]; then
 fi
 echo ""
 
-# Categorize by area
-RANGE="${SYNC_BASE}..${UPSTREAM_REMOTE}/${UPSTREAM_BRANCH}"
-SDK_COUNT=$(git log --oneline --no-merges "$RANGE" -- 'openhands-sdk/' | wc -l)
-TOOLS_COUNT=$(git log --oneline --no-merges "$RANGE" -- 'openhands-tools/' | wc -l)
-SERVER_COUNT=$(git log --oneline --no-merges "$RANGE" -- 'openhands-agent-server/' | wc -l)
-WORKSPACE_COUNT=$(git log --oneline --no-merges "$RANGE" -- 'openhands-workspace/' | wc -l)
-CI_COUNT=$(git log --oneline --no-merges "$RANGE" -- '.github/' | wc -l)
-TESTS_COUNT=$(git log --oneline --no-merges "$RANGE" -- 'tests/' | wc -l)
-
 echo "Breakdown:"
 echo "  SDK:         $SDK_COUNT"
 echo "  Tools:       $TOOLS_COUNT"
@@ -114,12 +149,6 @@ echo ""
 # Files changed summary
 echo "Files changed: $(git diff --stat "${SYNC_BASE}..${UPSTREAM_REMOTE}/${UPSTREAM_BRANCH}" | tail -1)"
 echo ""
-
-# Potential conflict check
-CUSTOM_FILES=$(git diff --name-only "${UPSTREAM_REMOTE}/${UPSTREAM_BRANCH}..${LOCAL_BRANCH}" 2>/dev/null)
-UPSTREAM_FILES=$(git diff --name-only "${SYNC_BASE}..${UPSTREAM_REMOTE}/${UPSTREAM_BRANCH}" 2>/dev/null)
-BOTH_MODIFIED=$(comm -12 <(echo "$CUSTOM_FILES" | sort) <(echo "$UPSTREAM_FILES" | sort))
-CONFLICT_COUNT=$(echo "$BOTH_MODIFIED" | grep -c . || true)
 
 if [ "$CONFLICT_COUNT" -gt 0 ]; then
     echo "Potential conflict files ($CONFLICT_COUNT files modified on both sides):"
