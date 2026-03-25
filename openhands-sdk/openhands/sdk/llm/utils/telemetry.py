@@ -95,9 +95,7 @@ class Telemetry(BaseModel):
 
         # 2) cost
         cost = self._compute_cost(resp)
-        # Intentionally skip logging zero-cost (0.0) responses; only record
-        # positive cost
-        if cost:
+        if cost is not None:
             self.metrics.add_cost(cost)
 
         # 3) tokens - use typed usage field when available
