@@ -213,5 +213,5 @@ agent-sdk.workspace.code-workspace
 tests/integration/outputs/
 tests/integration/api_compliance/outputs/
 
-# Upstream sync marker
-.last-upstream-sync
+# Agent-generated temp
+.agent_tmp/

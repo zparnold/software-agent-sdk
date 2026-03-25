@@ -210,14 +210,13 @@ class RemoteWorkspaceMixin(BaseModel):
 
             # Prepare the upload
             files = {"file": (source.name, file_content)}
-            data = {"destination_path": str(destination)}
 
-            # Make HTTP call
+            # Make HTTP call using query parameter for path
             response: httpx.Response = yield {
                 "method": "POST",
-                "url": f"{self.host}/api/file/upload/{destination}",
+                "url": f"{self.host}/api/file/upload",
+                "params": {"path": str(destination)},
                 "files": files,
-                "data": data,
                 "headers": self._headers,
                 "timeout": 60.0,
             }
@@ -264,40 +263,14 @@ class RemoteWorkspaceMixin(BaseModel):
         _logger.debug(f"Remote file download: {source} -> {destination}")
 
         try:
-            # Construct URL with path parameter (not query parameter)
-            # Double slash ensures FastAPI extracts path with leading slash
-            # for absolute path validation
-            source_str = str(source)
-            url = f"/api/file/download//{source_str.lstrip('/')}"
-
-            # Make HTTP call
-            response: httpx.Response = yield {
+            # Make HTTP call using query parameter for path
+            response = yield {
                 "method": "GET",
-                "url": url,
+                "url": "/api/file/download",
+                "params": {"path": str(source)},
                 "headers": self._headers,
                 "timeout": 60.0,
             }
-
-            # Handle client errors (4xx) with detailed messages from the server.
-            # The server returns 400 when the path is a directory (not a file)
-            # and 404 when the file doesn't exist. We extract the server's error
-            # detail to provide actionable error messages, preventing callers
-            # from futile retries on non-retryable errors.
-            if response.status_code >= 400 and response.status_code < 500:
-                detail = self._extract_error_detail(response)
-                error_msg = (
-                    f"Download failed ({response.status_code}): {detail}"
-                    if detail
-                    else f"Download failed with status {response.status_code}"
-                )
-                _logger.error(f"Remote file download failed for {source}: {error_msg}")
-                return FileOperationResult(
-                    success=False,
-                    source_path=str(source),
-                    destination_path=str(destination),
-                    error=error_msg,
-                )
-
             response.raise_for_status()
 
             # Ensure destination directory exists
@@ -322,27 +295,6 @@ class RemoteWorkspaceMixin(BaseModel):
                 destination_path=str(destination),
                 error=str(e),
             )
-
-    @staticmethod
-    def _extract_error_detail(response: httpx.Response) -> str:
-        """Extract a human-readable error detail from an HTTP error response.
-
-        Tries to parse a JSON body with a 'detail' field (FastAPI convention),
-        falling back to the raw response text.
-        """
-        try:
-            body = response.json()
-            if isinstance(body, dict) and "detail" in body:
-                return str(body["detail"])
-        except Exception:
-            pass
-        try:
-            text = response.text
-            if text:
-                return text
-        except Exception:
-            pass
-        return ""
 
     def _git_changes_generator(
         self,
