@@ -14,6 +14,7 @@ from openhands.sdk.context.skills import (
     load_org_skills,
     to_prompt,
 )
+from openhands.sdk.context.skills.skill import DEFAULT_MARKETPLACE_PATH
 from openhands.sdk.llm import Message, TextContent
 from openhands.sdk.llm.utils.model_prompt_spec import get_model_prompt_spec
 from openhands.sdk.logger import get_logger
@@ -38,7 +39,7 @@ class AgentContext(BaseModel):
     - **Runtime context**: Current execution environment (hosts, working
       directory, secrets, date, etc.).
     - **Conversation instructions**: Optional task- or channel-specific rules
-      that constrain or guide the agent’s behavior across the session.
+      that constrain or guide the agent's behavior across the session.
     - **Knowledge Skills**: Extensible components that can be triggered by user input
       to inject knowledge or domain-specific guidance.
 
@@ -92,6 +93,13 @@ class AgentContext(BaseModel):
         description=(
             "HTTP auth header value for the org skills repository "
             "(e.g., 'Authorization: Bearer <token>')."
+        ),
+    )
+    marketplace_path: str | None = Field(
+        default=DEFAULT_MARKETPLACE_PATH,
+        description=(
+            "Relative marketplace JSON path within the public skills repository. "
+            "Set to None to load all public skills without marketplace filtering."
         ),
     )
     secrets: Mapping[str, SecretValue] | None = Field(
@@ -170,6 +178,7 @@ class AgentContext(BaseModel):
             include_user=self.load_user_skills,
             include_project=False,
             include_public=self.load_public_skills,
+            marketplace_path=self.marketplace_path,
         )
 
         existing_names = {skill.name for skill in self.skills}
@@ -326,7 +335,7 @@ class AgentContext(BaseModel):
     def get_user_message_suffix(
         self, user_message: Message, skip_skill_names: list[str]
     ) -> tuple[TextContent, list[str]] | None:
-        """Augment the user’s message with knowledge recalled from skills.
+        """Augment the user's message with knowledge recalled from skills.
 
         This works by:
         - Extracting the text content of the user message

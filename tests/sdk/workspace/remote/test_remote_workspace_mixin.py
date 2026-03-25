@@ -300,10 +300,8 @@ def test_file_upload_generator_basic_flow(temp_file):
     # Get upload request
     upload_kwargs = next(generator)
     assert upload_kwargs["method"] == "POST"
-    assert (
-        upload_kwargs["url"] == f"http://localhost:8000/api/file/upload/{destination}"
-    )
-    assert upload_kwargs["data"]["destination_path"] == "/remote/file.txt"
+    assert upload_kwargs["url"] == "http://localhost:8000/api/file/upload"
+    assert upload_kwargs["params"] == {"path": destination}
     assert "file" in upload_kwargs["files"]
     assert upload_kwargs["headers"] == {"X-Session-API-Key": "test-key"}
 
@@ -333,7 +331,7 @@ def test_file_upload_generator_with_path_objects(temp_file):
     generator = mixin._file_upload_generator(Path(temp_file), Path("/remote/file.txt"))
 
     upload_kwargs = next(generator)
-    assert upload_kwargs["data"]["destination_path"] == "/remote/file.txt"
+    assert upload_kwargs["params"] == {"path": "/remote/file.txt"}
 
 
 def test_file_upload_generator_file_not_found():
@@ -403,7 +401,8 @@ def test_file_download_generator_basic_flow(temp_dir):
     # Get download request
     download_kwargs = next(generator)
     assert download_kwargs["method"] == "GET"
-    assert download_kwargs["url"] == "/api/file/download//remote/file.txt"
+    assert download_kwargs["url"] == "/api/file/download"
+    assert download_kwargs["params"] == {"path": "/remote/file.txt"}
     assert download_kwargs["headers"] == {"X-Session-API-Key": "test-key"}
 
     # Send response and get result
@@ -438,7 +437,8 @@ def test_file_download_generator_with_path_objects(temp_dir):
     generator = mixin._file_download_generator(Path("/remote/file.txt"), destination)
 
     download_kwargs = next(generator)
-    assert download_kwargs["url"] == "/api/file/download//remote/file.txt"
+    assert download_kwargs["url"] == "/api/file/download"
+    assert download_kwargs["params"] == {"path": "/remote/file.txt"}
 
 
 def test_file_download_generator_creates_directories(temp_dir):
@@ -605,35 +605,6 @@ def test_file_download_generator_400_empty_body():
         result = e.value
         assert result.success is False
         assert "400" in result.error
-
-
-def test_extract_error_detail_json():
-    """Test _extract_error_detail extracts detail from JSON response."""
-    response = Mock()
-    response.json.return_value = {"detail": "Path is not a file"}
-
-    detail = RemoteWorkspaceMixin._extract_error_detail(response)
-    assert detail == "Path is not a file"
-
-
-def test_extract_error_detail_text_fallback():
-    """Test _extract_error_detail falls back to response text."""
-    response = Mock()
-    response.json.side_effect = ValueError("not json")
-    response.text = "Bad Request"
-
-    detail = RemoteWorkspaceMixin._extract_error_detail(response)
-    assert detail == "Bad Request"
-
-
-def test_extract_error_detail_empty():
-    """Test _extract_error_detail returns empty string when no detail available."""
-    response = Mock()
-    response.json.side_effect = ValueError("not json")
-    response.text = ""
-
-    detail = RemoteWorkspaceMixin._extract_error_detail(response)
-    assert detail == ""
 
 
 def test_multiple_bash_output_events():
