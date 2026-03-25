@@ -1096,47 +1096,31 @@ def load_org_skills(
             logger.warning("Failed to access org skills repository")
             return all_skills
 
-        # Load skills from skills/ (preferred) and microagents/ (legacy)
-        for dir_name in ("skills", "microagents"):
-            search_dir = repo_path / dir_name
-            if not search_dir.exists():
-                continue
+        search_dir = repo_path / "skills"
+        if not search_dir.exists():
+            logger.warning("No skills/ directory found in org repository")
+            return all_skills
 
-            skill_md_files = find_skill_md_directories(search_dir)
-            skill_md_dirs = {skill_md.parent for skill_md in skill_md_files}
-            regular_md_files = find_regular_md_files(search_dir, skill_md_dirs)
+        skill_md_files = find_skill_md_directories(search_dir)
+        skill_md_dirs = {skill_md.parent for skill_md in skill_md_files}
+        regular_md_files = find_regular_md_files(search_dir, skill_md_dirs)
 
-            all_skill_files = list(skill_md_files) + list(regular_md_files)
-            logger.info(f"Found {len(all_skill_files)} skill files in org {dir_name}/")
+        all_skill_files = list(skill_md_files) + list(regular_md_files)
+        logger.info(f"Found {len(all_skill_files)} skill files in org skills/")
 
-            existing_names = {s.name for s in all_skills}
-            for skill_file in all_skill_files:
-                try:
-                    skill = Skill.load(
-                        path=skill_file,
-                        skill_base_dir=repo_path,
-                    )
-                    if skill is None:
-                        continue
-                    if skill.name in existing_names:
-                        logger.debug(
-                            f"Skipping duplicate org skill '{skill.name}' "
-                            f"from {dir_name}/"
-                        )
-                        continue
-                    all_skills.append(skill)
-                    existing_names.add(skill.name)
-                    logger.debug(f"Loaded org skill: {skill.name}")
-                except Exception as e:
-                    logger.warning(
-                        f"Failed to load skill from {skill_file.name}: {str(e)}"
-                    )
+        for skill_file in all_skill_files:
+            try:
+                skill = Skill.load(
+                    path=skill_file,
+                    skill_base_dir=repo_path,
+                )
+                if skill is None:
                     continue
-
-        if not all_skills:
-            logger.warning(
-                "No skills/ or microagents/ directory found in org repository"
-            )
+                all_skills.append(skill)
+                logger.debug(f"Loaded org skill: {skill.name}")
+            except Exception as e:
+                logger.warning(f"Failed to load skill from {skill_file.name}: {str(e)}")
+                continue
 
     except Exception as e:
         logger.warning(f"Failed to load org skills from {repo_url}: {str(e)}")

@@ -15,24 +15,34 @@ Unlike the OpenHands repo (which has a separate `self-hosted` branch), we work d
 
 ## Custom Commits to Preserve
 
-These commits contain our self-hosted customizations and must survive every merge:
+These customizations must survive every merge. Grouped by area:
 
-1. **`198e2a9`** — `feat(docker): add entrypoint script to handle CA certs and argv stripping`
-2. **`88859a8`** — `feat: configure VSCode server-base-path for proxy support`
-3. **`d1b8c6f`** — `fix: serialize webhook events with mode='json' to include kind field`
-4. **`a2b4f23`** — `Optimize count_events to avoid full iteration when no filters applied`
-5. **`a2140ea`** — `feat: add org-level shared skill registry support`
-6. **`e1fd801`** — `Add auth_header and branch support to agent-server org skills loading`
-7. **`96dd776`** — `Support microagents/ directory in load_org_skills for backwards compat`
-
-Key files touched by custom commits (high conflict risk):
+### Docker/Entrypoint (CA certs for corporate TLS)
 - `openhands-agent-server/openhands/agent_server/docker/entrypoint.sh`
-- `openhands-agent-server/openhands/agent_server/docker/Dockerfile`
-- `openhands-agent-server/openhands/agent_server/vscode_service.py`
-- `openhands-agent-server/openhands/agent_server/event_service.py`
-- `openhands-agent-server/openhands/agent_server/conversation_service.py`
-- `openhands-agent-server/openhands/agent_server/skills_service.py`
-- `openhands-agent-server/openhands/agent_server/skills_router.py`
+- `openhands-agent-server/openhands/agent_server/docker/build.py` (generates entrypoint for all targets)
+- `openhands-agent-server/openhands/agent_server/docker/Dockerfile` (root USER for CA cert merging)
+
+### Webhook & Cost Tracking
+- `openhands-agent-server/openhands/agent_server/event_service.py` — `model_dump(mode="json")` for kind field (upstream bug), stats emission on startup, asyncio thread-safety fix, WebSocket _closed flag
+- `openhands-agent-server/openhands/agent_server/sockets.py` — WebSocket ping/pong heartbeat handler
+
+### Org-Level Skill Registry
+- `openhands-agent-server/openhands/agent_server/skills_service.py` — org skills loading with auth_header + branch
+- `openhands-agent-server/openhands/agent_server/skills_router.py` — org skills routes
+- `openhands-sdk/openhands/sdk/context/agent_context.py` — org skills config fields
+- `openhands-sdk/openhands/sdk/context/skills/skill.py` — `load_org_skills()` function
+
+### Performance
+- `openhands-agent-server/openhands/agent_server/event_service.py` — count_events O(1) fast path
+
+### Error Handling
+- `openhands-sdk/openhands/sdk/workspace/remote/remote_workspace_mixin.py` — file download 4xx detail extraction
+
+### Dropped (2026-03-25)
+- ~~VSCode server-base-path~~ — absorbed by upstream
+- ~~microagents/ directory compat~~ — removed, use skills/ only
+- ~~Azure prompt_cache_retention fix~~ — absorbed by upstream
+- ~~CI workflow reverts~~ — no longer needed
 
 ## Pre-Merge: Check Status
 
