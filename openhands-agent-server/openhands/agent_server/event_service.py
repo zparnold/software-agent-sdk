@@ -488,6 +488,12 @@ class EventService:
                 )
                 self._conversation._on_event(error_event)
 
+        # Eagerly initialize the agent (tools, plugins, LLMs) during startup
+        # rather than waiting for the first send_message(). This eliminates
+        # the ~3 minute delay users experience after the UI shows "ready".
+        loop = asyncio.get_running_loop()
+        await loop.run_in_executor(None, self._conversation._ensure_agent_ready)
+
         # Publish initial state update
         await self._publish_state_update()
 
