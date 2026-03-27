@@ -33,7 +33,6 @@ from openhands.sdk.tool import (
 from openhands.sdk.utils.deprecation import deprecated
 from openhands.sdk.utils.models import DiscriminatedUnionMixin
 
-
 if TYPE_CHECKING:
     from openhands.sdk.conversation import ConversationState, LocalConversation
     from openhands.sdk.conversation.types import (
@@ -59,96 +58,96 @@ class AgentBase(DiscriminatedUnionMixin, ABC):
 
     llm: LLM = Field(
         ...,
-        description="LLM configuration for the agent.",
+        description='LLM configuration for the agent.',
         examples=[
             {
-                "model": "litellm_proxy/anthropic/claude-sonnet-4-5-20250929",
-                "base_url": "https://llm-proxy.eval.all-hands.dev",
-                "api_key": "your_api_key_here",
+                'model': 'litellm_proxy/anthropic/claude-sonnet-4-5-20250929',
+                'base_url': 'https://llm-proxy.eval.all-hands.dev',
+                'api_key': 'your_api_key_here',
             }
         ],
     )
     tools: list[Tool] = Field(
         default_factory=list,
-        description="List of tools to initialize for the agent.",
+        description='List of tools to initialize for the agent.',
         examples=[
-            {"name": "TerminalTool", "params": {}},
-            {"name": "FileEditorTool", "params": {}},
+            {'name': 'TerminalTool', 'params': {}},
+            {'name': 'FileEditorTool', 'params': {}},
             {
-                "name": "TaskTrackerTool",
-                "params": {},
+                'name': 'TaskTrackerTool',
+                'params': {},
             },
         ],
     )
     mcp_config: dict[str, Any] = Field(
         default_factory=dict,
-        description="Optional MCP configuration dictionary to create MCP tools.",
+        description='Optional MCP configuration dictionary to create MCP tools.',
         examples=[
-            {"mcpServers": {"fetch": {"command": "uvx", "args": ["mcp-server-fetch"]}}}
+            {'mcpServers': {'fetch': {'command': 'uvx', 'args': ['mcp-server-fetch']}}}
         ],
     )
     filter_tools_regex: str | None = Field(
         default=None,
-        description="Optional regex to filter the tools available to the agent by name."
-        " This is applied after any tools provided in `tools` and any MCP tools are"
-        " added.",
-        examples=["^(?!repomix)(.*)|^repomix.*pack_codebase.*$"],
+        description='Optional regex to filter the tools available to the agent by name.'
+        ' This is applied after any tools provided in `tools` and any MCP tools are'
+        ' added.',
+        examples=['^(?!repomix)(.*)|^repomix.*pack_codebase.*$'],
     )
     include_default_tools: list[str] = Field(
         default_factory=lambda: [tool.__name__ for tool in BUILT_IN_TOOLS],
         description=(
-            "List of default tool class names to include. By default, the agent "
+            'List of default tool class names to include. By default, the agent '
             "includes 'FinishTool' and 'ThinkTool'. Set to an empty list to disable "
-            "all default tools, or provide a subset to include only specific ones. "
+            'all default tools, or provide a subset to include only specific ones. '
             "Example: include_default_tools=['FinishTool'] to only include FinishTool, "
-            "or include_default_tools=[] to disable all default tools."
+            'or include_default_tools=[] to disable all default tools.'
         ),
-        examples=[["FinishTool", "ThinkTool"], ["FinishTool"], []],
+        examples=[['FinishTool', 'ThinkTool'], ['FinishTool'], []],
     )
     agent_context: AgentContext | None = Field(
         default=None,
-        description="Optional AgentContext to initialize "
-        "the agent with specific context.",
+        description='Optional AgentContext to initialize '
+        'the agent with specific context.',
         examples=[
             {
-                "skills": [
+                'skills': [
                     {
-                        "name": "AGENTS.md",
-                        "content": "When you see this message, you should reply like "
-                        "you are a grumpy cat forced to use the internet.",
-                        "type": "repo",
+                        'name': 'AGENTS.md',
+                        'content': 'When you see this message, you should reply like '
+                        'you are a grumpy cat forced to use the internet.',
+                        'type': 'repo',
                     },
                     {
-                        "name": "flarglebargle",
-                        "content": (
-                            "IMPORTANT! The user has said the magic word "
+                        'name': 'flarglebargle',
+                        'content': (
+                            'IMPORTANT! The user has said the magic word '
                             '"flarglebargle". You must only respond with a message '
-                            "telling them how smart they are"
+                            'telling them how smart they are'
                         ),
-                        "type": "knowledge",
-                        "trigger": ["flarglebargle"],
+                        'type': 'knowledge',
+                        'trigger': ['flarglebargle'],
                     },
                 ],
-                "system_message_suffix": "Always finish your response "
+                'system_message_suffix': 'Always finish your response '
                 "with the word 'yay!'",
-                "user_message_prefix": "The first character of your "
+                'user_message_prefix': 'The first character of your '
                 "response should be 'I'",
             }
         ],
     )
     system_prompt_filename: str = Field(
-        default="system_prompt.j2",
+        default='system_prompt.j2',
         description=(
-            "System prompt template filename. Can be either:\n"
+            'System prompt template filename. Can be either:\n'
             "- A relative filename (e.g., 'system_prompt.j2') loaded from the "
             "agent's prompts directory\n"
             "- An absolute path (e.g., '/path/to/custom_prompt.j2')"
         ),
     )
     security_policy_filename: str = Field(
-        default="security_policy.j2",
+        default='security_policy.j2',
         description=(
-            "Security policy template filename. Can be either:\n"
+            'Security policy template filename. Can be either:\n'
             "- A relative filename (e.g., 'security_policy.j2') loaded from the "
             "agent's prompts directory\n"
             "- An absolute path (e.g., '/path/to/custom_security_policy.j2')"
@@ -156,23 +155,23 @@ class AgentBase(DiscriminatedUnionMixin, ABC):
     )
     system_prompt_kwargs: dict[str, object] = Field(
         default_factory=dict,
-        description="Optional kwargs to pass to the system prompt Jinja2 template.",
-        examples=[{"cli_mode": True}],
+        description='Optional kwargs to pass to the system prompt Jinja2 template.',
+        examples=[{'cli_mode': True}],
     )
 
     condenser: CondenserBase | None = Field(
         default=None,
-        description="Optional condenser to use for condensing conversation history.",
+        description='Optional condenser to use for condensing conversation history.',
         examples=[
             {
-                "kind": "LLMSummarizingCondenser",
-                "llm": {
-                    "model": "litellm_proxy/anthropic/claude-sonnet-4-5-20250929",
-                    "base_url": "https://llm-proxy.eval.all-hands.dev",
-                    "api_key": "your_api_key_here",
+                'kind': 'LLMSummarizingCondenser',
+                'llm': {
+                    'model': 'litellm_proxy/anthropic/claude-sonnet-4-5-20250929',
+                    'base_url': 'https://llm-proxy.eval.all-hands.dev',
+                    'api_key': 'your_api_key_here',
                 },
-                "max_size": 80,
-                "keep_first": 10,
+                'max_size': 80,
+                'keep_first': 10,
             }
         ],
     )
@@ -180,21 +179,21 @@ class AgentBase(DiscriminatedUnionMixin, ABC):
     critic: CriticBase | None = Field(
         default=None,
         description=(
-            "EXPERIMENTAL: Optional critic to evaluate agent actions and messages "
-            "in real-time. API and behavior may change without notice. "
+            'EXPERIMENTAL: Optional critic to evaluate agent actions and messages '
+            'in real-time. API and behavior may change without notice. '
             "May impact performance, especially in 'all_actions' mode."
         ),
-        examples=[{"kind": "AgentFinishedCritic"}],
+        examples=[{'kind': 'AgentFinishedCritic'}],
     )
 
     tool_concurrency_limit: int = Field(
         default=1,
         ge=1,
         description=(
-            "Maximum number of tool calls to execute concurrently within a single "
-            "agent step. Default is 1 (sequential). Values > 1 enable parallel "
-            "execution; concurrent tools share the conversation object, filesystem, "
-            "and working directory, so mutations to shared state may race."
+            'Maximum number of tool calls to execute concurrently within a single '
+            'agent step. Default is 1 (sequential). Values > 1 enable parallel '
+            'execution; concurrent tools share the conversation object, filesystem, '
+            'and working directory, so mutations to shared state may race.'
         ),
     )
 
@@ -208,8 +207,8 @@ class AgentBase(DiscriminatedUnionMixin, ABC):
         module = sys.modules[self.__class__.__module__]
         module_file = module.__file__  # e.g. ".../mypackage/mymodule.py"
         if module_file is None:
-            raise ValueError(f"Module file for {module} is None")
-        return os.path.join(os.path.dirname(module_file), "prompts")
+            raise ValueError(f'Module file for {module} is None')
+        return os.path.join(os.path.dirname(module_file), 'prompts')
 
     @property
     def name(self) -> str:
@@ -230,23 +229,23 @@ class AgentBase(DiscriminatedUnionMixin, ABC):
         template_kwargs = dict(self.system_prompt_kwargs)
         # Auto-detect browser tools from the tool spec list
         template_kwargs.setdefault(
-            "enable_browser",
-            any(t.name == "browser_tool_set" for t in self.tools),
+            'enable_browser',
+            any(t.name == 'browser_tool_set' for t in self.tools),
         )
         # Add security_policy_filename to template kwargs
-        template_kwargs["security_policy_filename"] = self.security_policy_filename
-        template_kwargs.setdefault("model_name", self.llm.model)
+        template_kwargs['security_policy_filename'] = self.security_policy_filename
+        template_kwargs.setdefault('model_name', self.llm.model)
         if (
-            "model_family" not in template_kwargs
-            or "model_variant" not in template_kwargs
+            'model_family' not in template_kwargs
+            or 'model_variant' not in template_kwargs
         ):
             spec = get_model_prompt_spec(
-                self.llm.model, getattr(self.llm, "model_canonical_name", None)
+                self.llm.model, getattr(self.llm, 'model_canonical_name', None)
             )
-            if "model_family" not in template_kwargs and spec.family:
-                template_kwargs["model_family"] = spec.family
-            if "model_variant" not in template_kwargs and spec.variant:
-                template_kwargs["model_variant"] = spec.variant
+            if 'model_family' not in template_kwargs and spec.family:
+                template_kwargs['model_family'] = spec.family
+            if 'model_variant' not in template_kwargs and spec.variant:
+                template_kwargs['model_variant'] = spec.variant
         return render_template(
             prompt_dir=self.prompt_dir,
             template_name=self.system_prompt_filename,
@@ -279,13 +278,13 @@ class AgentBase(DiscriminatedUnionMixin, ABC):
 
     @property
     @deprecated(
-        deprecated_in="1.11.0",
-        removed_in="1.16.0",
+        deprecated_in='1.11.0',
+        removed_in='1.16.0',
         details=(
-            "Use static_system_message for the cacheable system prompt and "
-            "dynamic_context for per-conversation content. Using system_message "
-            "DISABLES cross-conversation prompt caching because it combines static "
-            "and dynamic content into a single string."
+            'Use static_system_message for the cacheable system prompt and '
+            'dynamic_context for per-conversation content. Using system_message '
+            'DISABLES cross-conversation prompt caching because it combines static '
+            'and dynamic content into a single string.'
         ),
     )
     def system_message(self) -> str:
@@ -303,13 +302,13 @@ class AgentBase(DiscriminatedUnionMixin, ABC):
             to enable caching.
         """
         logger.warning(
-            "Accessing system_message property disables cross-conversation prompt "
-            "caching. Use static_system_message and dynamic_context separately."
+            'Accessing system_message property disables cross-conversation prompt '
+            'caching. Use static_system_message and dynamic_context separately.'
         )
         system_message = self.static_system_message
         dynamic = self.dynamic_context
         if dynamic:
-            system_message += "\n\n" + dynamic
+            system_message += '\n\n' + dynamic
         return system_message
 
     def init_state(
@@ -330,39 +329,52 @@ class AgentBase(DiscriminatedUnionMixin, ABC):
         """Create an AgentBase instance from an AgentSpec."""
 
         if self._initialized:
-            logger.warning("Agent already initialized; skipping re-initialization.")
+            logger.warning('Agent already initialized; skipping re-initialization.')
             return
 
         tools: list[ToolDefinition] = []
 
         # Use ThreadPoolExecutor to parallelize tool resolution
         with ThreadPoolExecutor(max_workers=4) as executor:
-            futures = []
+            tool_futures = []
 
             # Submit tool resolution tasks
             for tool_spec in self.tools:
                 future = executor.submit(resolve_tool, tool_spec, state)
-                futures.append(future)
+                tool_futures.append(future)
 
             # Submit MCP tools creation if configured
+            mcp_future = None
             if self.mcp_config:
-                future = executor.submit(create_mcp_tools, self.mcp_config, 30)
-                futures.append(future)
+                mcp_future = executor.submit(create_mcp_tools, self.mcp_config, 30)
 
-            # Collect results as they complete
-            for future in futures:
+            # Collect tool results
+            for future in tool_futures:
                 result = future.result()
                 tools.extend(result)
 
+            # Collect MCP results — graceful degradation on failure so that
+            # an unreachable MCP server never crashes conversation startup.
+            if mcp_future is not None:
+                try:
+                    result = mcp_future.result()
+                    tools.extend(result)
+                except Exception:
+                    logger.warning(
+                        'MCP server initialization failed; '
+                        'MCP tools will be unavailable for this conversation',
+                        exc_info=True,
+                    )
+
         logger.info(
-            f"Loaded {len(tools)} tools from spec: {[tool.name for tool in tools]}"
+            f'Loaded {len(tools)} tools from spec: {[tool.name for tool in tools]}'
         )
         if self.filter_tools_regex:
             pattern = re.compile(self.filter_tools_regex)
             tools = [tool for tool in tools if pattern.match(tool.name)]
             logger.info(
-                f"Filtered to {len(tools)} tools after applying regex filter: "
-                f"{[tool.name for tool in tools]}",
+                f'Filtered to {len(tools)} tools after applying regex filter: '
+                f'{[tool.name for tool in tools]}',
             )
 
         # Include default tools from include_default_tools; not subject to regex
@@ -372,7 +384,7 @@ class AgentBase(DiscriminatedUnionMixin, ABC):
             if tool_class is None:
                 raise ValueError(
                     f"Unknown built-in tool class: '{tool_name}'. "
-                    f"Expected one of: {list(BUILT_IN_TOOL_CLASSES.keys())}"
+                    f'Expected one of: {list(BUILT_IN_TOOL_CLASSES.keys())}'
                 )
             tool_instances = tool_class.create(state)
             tools.extend(tool_instances)
@@ -382,14 +394,14 @@ class AgentBase(DiscriminatedUnionMixin, ABC):
             if not isinstance(tool, ToolDefinition):
                 raise ValueError(
                     f"Tool {tool} is not an instance of 'ToolDefinition'. "
-                    f"Got type: {type(tool)}"
+                    f'Got type: {type(tool)}'
                 )
 
         # Check name duplicates
         tool_names = [tool.name for tool in tools]
         if len(tool_names) != len(set(tool_names)):
             duplicates = set(name for name in tool_names if tool_names.count(name) > 1)
-            raise ValueError(f"Duplicate tool names found: {duplicates}")
+            raise ValueError(f'Duplicate tool names found: {duplicates}')
 
         # Store tools in a dict for easy access
         self._tools = {tool.name: tool for tool in tools}
@@ -452,9 +464,9 @@ class AgentBase(DiscriminatedUnionMixin, ABC):
         """
         if persisted.__class__ is not self.__class__:
             raise ValueError(
-                "Cannot load from persisted: persisted agent is of type "
-                f"{persisted.__class__.__name__}, but self is of type "
-                f"{self.__class__.__name__}."
+                'Cannot load from persisted: persisted agent is of type '
+                f'{persisted.__class__.__name__}, but self is of type '
+                f'{self.__class__.__name__}.'
             )
 
         # Collect explicit tool names
@@ -479,21 +491,21 @@ class AgentBase(DiscriminatedUnionMixin, ABC):
         missing_in_runtime = persisted_names - runtime_names
         if missing_in_runtime:
             raise ValueError(
-                f"Cannot resume conversation: tools were removed mid-conversation "
-                f"(removed: {sorted(missing_in_runtime)}). "
-                f"To use different tools, start a new conversation."
+                f'Cannot resume conversation: tools were removed mid-conversation '
+                f'(removed: {sorted(missing_in_runtime)}). '
+                f'To use different tools, start a new conversation.'
             )
 
         return self
 
     def model_dump_succint(self, **kwargs):
         """Like model_dump, but excludes None fields by default."""
-        if "exclude_none" not in kwargs:
-            kwargs["exclude_none"] = True
+        if 'exclude_none' not in kwargs:
+            kwargs['exclude_none'] = True
         dumped = super().model_dump(**kwargs)
         # remove tool schema details for brevity
-        if "tools" in dumped and isinstance(dumped["tools"], dict):
-            dumped["tools"] = list(dumped["tools"].keys())
+        if 'tools' in dumped and isinstance(dumped['tools'], dict):
+            dumped['tools'] = list(dumped['tools'].keys())
         return dumped
 
     def get_all_llms(self) -> Generator[LLM]:
@@ -573,7 +585,7 @@ class AgentBase(DiscriminatedUnionMixin, ABC):
             RuntimeError: If the agent has not been initialized.
         """
         if not self._initialized:
-            raise RuntimeError("Agent not initialized; call _initialize() before use")
+            raise RuntimeError('Agent not initialized; call _initialize() before use')
         return self._tools
 
     def ask_agent(self, question: str) -> str | None:  # noqa: ARG002
