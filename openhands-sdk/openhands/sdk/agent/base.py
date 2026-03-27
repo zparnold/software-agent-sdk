@@ -5,7 +5,7 @@ import re
 import sys
 from abc import ABC, abstractmethod
 from collections.abc import Generator, Iterable, Sequence
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import Future, ThreadPoolExecutor
 from typing import TYPE_CHECKING, Any
 
 from pydantic import (
@@ -334,31 +334,58 @@ class AgentBase(DiscriminatedUnionMixin, ABC):
 
         tools: list[ToolDefinition] = []
 
-        # Use ThreadPoolExecutor to parallelize tool resolution
+        # Use ThreadPoolExecutor to parallelize tool resolution.
+        # All futures use explicit timeouts to prevent indefinite hangs
+        # during conversation startup (e.g. browser init, MCP connection).
+        tool_init_timeout = 120  # seconds per tool
+        mcp_init_timeout = 120  # seconds for MCP
         with ThreadPoolExecutor(max_workers=4) as executor:
-            tool_futures = []
+            tool_futures: list[tuple[str, Future]] = []
 
             # Submit tool resolution tasks
             for tool_spec in self.tools:
                 future = executor.submit(resolve_tool, tool_spec, state)
-                tool_futures.append(future)
+                tool_futures.append((tool_spec.name, future))
 
             # Submit MCP tools creation if configured
             mcp_future = None
             if self.mcp_config:
                 mcp_future = executor.submit(create_mcp_tools, self.mcp_config, 30)
 
-            # Collect tool results
-            for future in tool_futures:
-                result = future.result()
-                tools.extend(result)
+            # Collect tool results with timeout
+            for tool_name, future in tool_futures:
+                try:
+                    result = future.result(timeout=tool_init_timeout)
+                    tools.extend(result)
+                except TimeoutError:
+                    logger.warning(
+                        'Tool %s initialization timed out after %ds; '
+                        'it will be unavailable for this conversation',
+                        tool_name,
+                        tool_init_timeout,
+                    )
+                    future.cancel()
+                except Exception:
+                    logger.warning(
+                        'Tool %s initialization failed; '
+                        'it will be unavailable for this conversation',
+                        tool_name,
+                        exc_info=True,
+                    )
 
             # Collect MCP results — graceful degradation on failure so that
             # an unreachable MCP server never crashes conversation startup.
             if mcp_future is not None:
                 try:
-                    result = mcp_future.result()
+                    result = mcp_future.result(timeout=mcp_init_timeout)
                     tools.extend(result)
+                except TimeoutError:
+                    logger.warning(
+                        'MCP server initialization timed out after %ds; '
+                        'MCP tools will be unavailable for this conversation',
+                        mcp_init_timeout,
+                    )
+                    mcp_future.cancel()
                 except Exception:
                     logger.warning(
                         'MCP server initialization failed; '
