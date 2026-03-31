@@ -1,5 +1,4 @@
 import os
-import sys
 from collections.abc import Callable
 from typing import (
     Any,
@@ -43,12 +42,19 @@ def maybe_init_laminar():
     ```
     """
     if should_enable_observability():
-        # Laminar.initialize() doesn't expose app_name but internally calls
-        # TracerManager.init(app_name=sys.argv[0]).  Override sys.argv[0]
-        # temporarily so the OTEL service.name resource attribute is correct.
+        # Laminar.initialize() calls TracerManager.init() without passing
+        # app_name, so it falls back to the default: sys.argv[0].  However,
+        # Python evaluates default arguments at *import time*, so the default
+        # is baked in as the binary path (e.g. /usr/local/bin/openhands-agent-server)
+        # before we can override sys.argv[0].
+        #
+        # Fix: patch TracerManager.init's default for app_name directly.
         service_name = os.environ.get('OTEL_SERVICE_NAME', 'openhands-agent-server')
-        saved_argv0 = sys.argv[0]
-        sys.argv[0] = service_name
+        from lmnr.opentelemetry_lib import TracerManager
+
+        _orig_defaults = TracerManager.init.__defaults__
+        # app_name is the first default (position 0)
+        TracerManager.init.__defaults__ = (service_name,) + _orig_defaults[1:]
         try:
             if _is_otel_backend_laminar():
                 Laminar.initialize()
@@ -62,7 +68,7 @@ def maybe_init_laminar():
                     ],
                 )
         finally:
-            sys.argv[0] = saved_argv0
+            TracerManager.init.__defaults__ = _orig_defaults
         # Wrap the TracerProvider's sampler to drop health-check spans.
         # This is the OTEL equivalent of DD_TRACE_SAMPLING_RULES.
         provider = trace.get_tracer_provider()
