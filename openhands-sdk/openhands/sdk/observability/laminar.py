@@ -1,4 +1,5 @@
 import os
+import sys
 from collections.abc import Callable
 from typing import (
     Any,
@@ -42,22 +43,26 @@ def maybe_init_laminar():
     ```
     """
     if should_enable_observability():
-        # Use OTEL_SERVICE_NAME if set; fall back to a sensible default.
-        # Laminar defaults app_name to sys.argv[0] which resolves to the
-        # binary path, producing the wrong service name in Datadog.
+        # Laminar.initialize() doesn't expose app_name but internally calls
+        # TracerManager.init(app_name=sys.argv[0]).  Override sys.argv[0]
+        # temporarily so the OTEL service.name resource attribute is correct.
         service_name = os.environ.get('OTEL_SERVICE_NAME', 'openhands-agent-server')
-        if _is_otel_backend_laminar():
-            Laminar.initialize(app_name=service_name)
-        else:
-            # Do not enable browser session replays for non-laminar backends
-            Laminar.initialize(
-                app_name=service_name,
-                disabled_instruments=[
-                    Instruments.BROWSER_USE_SESSION,
-                    Instruments.PATCHRIGHT,
-                    Instruments.PLAYWRIGHT,
-                ],
-            )
+        saved_argv0 = sys.argv[0]
+        sys.argv[0] = service_name
+        try:
+            if _is_otel_backend_laminar():
+                Laminar.initialize()
+            else:
+                # Do not enable browser session replays for non-laminar backends
+                Laminar.initialize(
+                    disabled_instruments=[
+                        Instruments.BROWSER_USE_SESSION,
+                        Instruments.PATCHRIGHT,
+                        Instruments.PLAYWRIGHT,
+                    ],
+                )
+        finally:
+            sys.argv[0] = saved_argv0
         # Wrap the TracerProvider's sampler to drop health-check spans.
         # This is the OTEL equivalent of DD_TRACE_SAMPLING_RULES.
         provider = trace.get_tracer_provider()
