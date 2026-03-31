@@ -37,10 +37,10 @@ from openhands.agent_server.skills_router import skills_router
 from openhands.agent_server.sockets import sockets_router
 from openhands.agent_server.tool_preload_service import get_tool_preload_service
 from openhands.agent_server.tool_router import tool_router
+from openhands.agent_server.trace_middleware import TraceContextMiddleware
 from openhands.agent_server.vscode_router import vscode_router
 from openhands.agent_server.vscode_service import get_vscode_service
 from openhands.sdk.logger import DEBUG, get_logger
-
 
 logger = get_logger(__name__)
 
@@ -57,35 +57,35 @@ async def api_lifespan(api: FastAPI) -> AsyncIterator[None]:
         if vscode_service is not None:
             vscode_started = await vscode_service.start()
             if vscode_started:
-                logger.info("VSCode service started successfully")
+                logger.info('VSCode service started successfully')
             else:
                 logger.warning(
-                    "VSCode service failed to start, continuing without VSCode"
+                    'VSCode service failed to start, continuing without VSCode'
                 )
         else:
-            logger.info("VSCode service is disabled")
+            logger.info('VSCode service is disabled')
 
     async def start_desktop_service():
         if desktop_service is not None:
             desktop_started = await desktop_service.start()
             if desktop_started:
-                logger.info("Desktop service started successfully")
+                logger.info('Desktop service started successfully')
             else:
                 logger.warning(
-                    "Desktop service failed to start, continuing without desktop"
+                    'Desktop service failed to start, continuing without desktop'
                 )
         else:
-            logger.info("Desktop service is disabled")
+            logger.info('Desktop service is disabled')
 
     async def start_tool_preload_service():
         if tool_preload_service is not None:
             tool_preload_started = await tool_preload_service.start()
             if tool_preload_started:
-                logger.info("Tool preload service started successfully")
+                logger.info('Tool preload service started successfully')
             else:
-                logger.warning("Tool preload service failed to start - skipping")
+                logger.warning('Tool preload service failed to start - skipping')
         else:
-            logger.info("Tool preload service is disabled")
+            logger.info('Tool preload service is disabled')
 
     # Start all services concurrently
     results = await asyncio.gather(
@@ -99,19 +99,19 @@ async def api_lifespan(api: FastAPI) -> AsyncIterator[None]:
     exceptions = [r for r in results if isinstance(r, Exception)]
     if exceptions:
         logger.error(
-            "Service initialization failed with %d exception(s): %s",
+            'Service initialization failed with %d exception(s): %s',
             len(exceptions),
             exceptions,
         )
         # Re-raise the first exception to prevent server from starting
         raise RuntimeError(
-            f"Server initialization failed with {len(exceptions)} exception(s)"
+            f'Server initialization failed with {len(exceptions)} exception(s)'
         ) from exceptions[0]
 
     # Mark initialization as complete - now the /ready endpoint will return 200
     # and Kubernetes readiness probes will pass
     mark_initialization_complete()
-    logger.info("Server initialization complete - ready to serve requests")
+    logger.info('Server initialization complete - ready to serve requests')
 
     async with service:
         # Store the initialized service in app state for dependency injection
@@ -142,10 +142,10 @@ async def api_lifespan(api: FastAPI) -> AsyncIterator[None]:
 
 
 def _get_root_path(config: Config) -> str:
-    root_path = ""
+    root_path = ''
     if config.web_url:
         web_url = urlparse(config.web_url)
-        root_path = web_url.path.rstrip("/")
+        root_path = web_url.path.rstrip('/')
     return root_path
 
 
@@ -156,16 +156,16 @@ def _create_fastapi_instance(config: Config) -> FastAPI:
         Basic FastAPI application with title, description, and lifespan.
     """
     return FastAPI(
-        title="OpenHands Agent Server",
+        title='OpenHands Agent Server',
         description=(
-            "OpenHands Agent Server - REST/WebSocket interface for OpenHands AI Agent"
+            'OpenHands Agent Server - REST/WebSocket interface for OpenHands AI Agent'
         ),
         lifespan=api_lifespan,
         root_path=_get_root_path(config),
     )
 
 
-def _find_http_exception(exc: BaseExceptionGroup) -> HTTPException | None:
+def _find_http_exception(exc: BaseExceptionGroup) -> HTTPException | None:  # noqa: F821
     """Helper function to find HTTPException in ExceptionGroup.
 
     Args:
@@ -178,7 +178,7 @@ def _find_http_exception(exc: BaseExceptionGroup) -> HTTPException | None:
         if isinstance(inner_exc, HTTPException):
             return inner_exc
         # Recursively search nested ExceptionGroups
-        if isinstance(inner_exc, BaseExceptionGroup):
+        if isinstance(inner_exc, BaseExceptionGroup):  # noqa: F821
             found = _find_http_exception(inner_exc)
             if found:
                 return found
@@ -197,7 +197,7 @@ def _add_api_routes(app: FastAPI, config: Config) -> None:
     if config.session_api_keys:
         dependencies.append(Depends(create_session_api_key_dependency(config)))
 
-    api_router = APIRouter(prefix="/api", dependencies=dependencies)
+    api_router = APIRouter(prefix='/api', dependencies=dependencies)
     api_router.include_router(event_router)
     api_router.include_router(conversation_router)
     api_router.include_router(conversation_router_acp)
@@ -228,28 +228,28 @@ def _setup_static_files(app: FastAPI, config: Config) -> None:
         and config.static_files_path.is_dir()
     ):
         # Map the root path to server info if there are no static files
-        app.get("/", tags=["Server Details"])(get_server_info)
+        app.get('/', tags=['Server Details'])(get_server_info)
         return
 
     # Mount static files directory
     app.mount(
-        "/static",
+        '/static',
         StaticFiles(directory=str(config.static_files_path)),
-        name="static",
+        name='static',
     )
 
     # Add root redirect to static files
-    @app.get("/", tags=["Server Details"])
+    @app.get('/', tags=['Server Details'])
     async def root_redirect():
         """Redirect root endpoint to static files directory."""
         # Check if index.html exists in the static directory
         # We know static_files_path is not None here due to the outer condition
         assert config.static_files_path is not None
-        index_path = config.static_files_path / "index.html"
+        index_path = config.static_files_path / 'index.html'
         if index_path.exists():
-            return RedirectResponse(url="/static/index.html", status_code=302)
+            return RedirectResponse(url='/static/index.html', status_code=302)
         else:
-            return RedirectResponse(url="/static/", status_code=302)
+            return RedirectResponse(url='/static/', status_code=302)
 
 
 def _add_exception_handlers(api: FastAPI) -> None:
@@ -262,7 +262,7 @@ def _add_exception_handlers(api: FastAPI) -> None:
         """Handle unhandled exceptions."""
         # Always log that we're in the exception handler for debugging
         logger.debug(
-            "Exception handler called for %s %s with %s: %s",
+            'Exception handler called for %s %s with %s: %s',
             request.method,
             request.url.path,
             type(exc).__name__,
@@ -270,24 +270,24 @@ def _add_exception_handlers(api: FastAPI) -> None:
         )
 
         content = {
-            "detail": "Internal Server Error",
-            "exception": str(exc),
+            'detail': 'Internal Server Error',
+            'exception': str(exc),
         }
         # In DEBUG mode, include stack trace in response
         if DEBUG:
-            content["traceback"] = traceback.format_exc()
+            content['traceback'] = traceback.format_exc()
         # Check if this is an HTTPException that should be handled directly
         if isinstance(exc, HTTPException):
             return await _http_exception_handler(request, exc)
 
         # Check if this is a BaseExceptionGroup with HTTPExceptions
-        if isinstance(exc, BaseExceptionGroup):
+        if isinstance(exc, BaseExceptionGroup):  # noqa: F821
             http_exc = _find_http_exception(exc)
             if http_exc:
                 return await _http_exception_handler(request, http_exc)
             # If no HTTPException found, treat as unhandled exception
             logger.error(
-                "Unhandled ExceptionGroup on %s %s",
+                'Unhandled ExceptionGroup on %s %s',
                 request.method,
                 request.url.path,
                 exc_info=(type(exc), exc, exc.__traceback__),
@@ -297,7 +297,7 @@ def _add_exception_handlers(api: FastAPI) -> None:
         # Logs full stack trace for any unhandled error that FastAPI would
         # turn into a 500
         logger.error(
-            "Unhandled exception on %s %s",
+            'Unhandled exception on %s %s',
             request.method,
             request.url.path,
             exc_info=(type(exc), exc, exc.__traceback__),
@@ -312,7 +312,7 @@ def _add_exception_handlers(api: FastAPI) -> None:
         # Log 4xx errors at info level (expected client errors like auth failures)
         if 400 <= exc.status_code < 500:
             logger.info(
-                "HTTPException %d on %s %s: %s",
+                'HTTPException %d on %s %s: %s',
                 exc.status_code,
                 request.method,
                 request.url.path,
@@ -321,7 +321,7 @@ def _add_exception_handlers(api: FastAPI) -> None:
         # Log 5xx errors at error level with full traceback (server errors)
         elif exc.status_code >= 500:
             logger.error(
-                "HTTPException %d on %s %s: %s",
+                'HTTPException %d on %s %s: %s',
                 exc.status_code,
                 request.method,
                 request.url.path,
@@ -329,11 +329,11 @@ def _add_exception_handlers(api: FastAPI) -> None:
                 exc_info=(type(exc), exc, exc.__traceback__),
             )
             content = {
-                "detail": "Internal Server Error",
-                "exception": str(exc),
+                'detail': 'Internal Server Error',
+                'exception': str(exc),
             }
             if DEBUG:
-                content["traceback"] = traceback.format_exc()
+                content['traceback'] = traceback.format_exc()
             # Don't leak internal details to clients for 5xx errors in production
             return JSONResponse(
                 status_code=exc.status_code,
@@ -341,7 +341,7 @@ def _add_exception_handlers(api: FastAPI) -> None:
             )
 
         # Return clean JSON response for all non-5xx HTTP exceptions
-        return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
+        return JSONResponse(status_code=exc.status_code, content={'detail': exc.detail})
 
 
 def create_app(config: Config | None = None) -> FastAPI:
@@ -361,6 +361,9 @@ def create_app(config: Config | None = None) -> FastAPI:
     _add_api_routes(app, config)
     _setup_static_files(app, config)
     app.add_middleware(LocalhostCORSMiddleware, allow_origins=config.allow_cors_origins)
+    # Extract W3C Trace Context + Baggage from incoming requests so OTEL spans
+    # become children of the upstream distributed trace (runtime API → agent-server).
+    app.add_middleware(TraceContextMiddleware)
     _add_exception_handlers(app)
 
     return app

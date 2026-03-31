@@ -1,3 +1,4 @@
+import os
 from collections.abc import Callable
 from typing import (
     Any,
@@ -9,13 +10,14 @@ from lmnr import (
     Instruments,
     Laminar,
     LaminarLiteLLMCallback,
+)
+from lmnr import (
     observe as laminar_observe,
 )
 from opentelemetry import trace
 
 from openhands.sdk.logger import get_logger
 from openhands.sdk.observability.utils import get_env
-
 
 logger = get_logger(__name__)
 
@@ -38,11 +40,16 @@ def maybe_init_laminar():
     ```
     """
     if should_enable_observability():
+        # Use OTEL_SERVICE_NAME if set; fall back to a sensible default.
+        # Laminar defaults app_name to sys.argv[0] which resolves to the
+        # binary path, producing the wrong service name in Datadog.
+        service_name = os.environ.get('OTEL_SERVICE_NAME', 'openhands-agent-server')
         if _is_otel_backend_laminar():
-            Laminar.initialize()
+            Laminar.initialize(app_name=service_name)
         else:
             # Do not enable browser session replays for non-laminar backends
             Laminar.initialize(
+                app_name=service_name,
                 disabled_instruments=[
                     Instruments.BROWSER_USE_SESSION,
                     Instruments.PATCHRIGHT,
@@ -52,8 +59,8 @@ def maybe_init_laminar():
         litellm.callbacks.append(LaminarLiteLLMCallback())
     else:
         logger.debug(
-            "Observability/OTEL environment variables are not set. "
-            "Skipping Laminar initialization."
+            'Observability/OTEL environment variables are not set. '
+            'Skipping Laminar initialization.'
         )
 
 
@@ -64,7 +71,7 @@ def observe[**P, R](
     user_id: str | None = None,
     ignore_input: bool = False,
     ignore_output: bool = False,
-    span_type: Literal["DEFAULT", "LLM", "TOOL"] = "DEFAULT",
+    span_type: Literal['DEFAULT', 'LLM', 'TOOL'] = 'DEFAULT',
     ignore_inputs: list[str] | None = None,
     input_formatter: Callable[..., str] | None = None,
     output_formatter: Callable[..., str] | None = None,
@@ -93,10 +100,10 @@ def observe[**P, R](
 
 def should_enable_observability():
     keys = [
-        "LMNR_PROJECT_API_KEY",
-        "OTEL_ENDPOINT",
-        "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT",
-        "OTEL_EXPORTER_OTLP_ENDPOINT",
+        'LMNR_PROJECT_API_KEY',
+        'OTEL_ENDPOINT',
+        'OTEL_EXPORTER_OTLP_TRACES_ENDPOINT',
+        'OTEL_EXPORTER_OTLP_ENDPOINT',
     ]
     if any(get_env(key) for key in keys):
         return True
@@ -111,8 +118,8 @@ def _is_otel_backend_laminar():
     authentication scheme, and the user uses LMNR_PROJECT_API_KEY
     instead of OTEL_HEADERS to authenticate.
     """
-    key = get_env("LMNR_PROJECT_API_KEY")
-    return key is not None and key != ""
+    key = get_env('LMNR_PROJECT_API_KEY')
+    return key is not None and key != ''
 
 
 class SpanManager:
@@ -131,7 +138,7 @@ class SpanManager:
     def end_active_span(self) -> None:
         """End the most recent active span by popping it from the stack."""
         if not self._stack:
-            logger.warning("Attempted to end active span, but stack is empty")
+            logger.warning('Attempted to end active span, but stack is empty')
             return
 
         try:
@@ -139,7 +146,7 @@ class SpanManager:
             if span and span.is_recording():
                 span.end()
         except IndexError:
-            logger.warning("Attempted to end active span, but stack is empty")
+            logger.warning('Attempted to end active span, but stack is empty')
             return
 
 
@@ -163,5 +170,5 @@ def end_active_span() -> None:
     try:
         _get_span_manager().end_active_span()
     except Exception:
-        logger.debug("Error ending active span")
+        logger.debug('Error ending active span')
         pass
