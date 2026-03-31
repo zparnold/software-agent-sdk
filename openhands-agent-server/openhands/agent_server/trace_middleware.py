@@ -24,19 +24,11 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
 
-# Health-check paths that should not produce traces (they add noise in APM).
-_HEALTH_PATHS = frozenset({'/health', '/alive', '/ready', '/server_info'})
-
 
 class TraceContextMiddleware(BaseHTTPMiddleware):
     """Extract W3C Trace Context + Baggage from incoming requests."""
 
     async def dispatch(self, request: Request, call_next) -> Response:
-        # Skip trace context extraction for health-check endpoints to avoid
-        # flooding Datadog APM with noisy liveness/readiness probe spans.
-        if request.url.path in _HEALTH_PATHS:
-            return await call_next(request)
-
         # Extract W3C traceparent, tracestate, and baggage from request headers.
         # propagate.extract() uses the globally configured propagators which
         # include W3C TraceContext and Baggage by default.

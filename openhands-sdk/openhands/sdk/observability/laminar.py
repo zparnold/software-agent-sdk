@@ -15,8 +15,10 @@ from lmnr import (
     observe as laminar_observe,
 )
 from opentelemetry import trace
+from opentelemetry.sdk.trace import TracerProvider as SdkTracerProvider
 
 from openhands.sdk.logger import get_logger
+from openhands.sdk.observability.health_check_sampler import HealthCheckSampler
 from openhands.sdk.observability.utils import get_env
 
 logger = get_logger(__name__)
@@ -56,6 +58,12 @@ def maybe_init_laminar():
                     Instruments.PLAYWRIGHT,
                 ],
             )
+        # Wrap the TracerProvider's sampler to drop health-check spans.
+        # This is the OTEL equivalent of DD_TRACE_SAMPLING_RULES.
+        provider = trace.get_tracer_provider()
+        if isinstance(provider, SdkTracerProvider):
+            provider.sampler = HealthCheckSampler(provider.sampler)
+
         litellm.callbacks.append(LaminarLiteLLMCallback())
     else:
         logger.debug(
