@@ -8,6 +8,43 @@ from pythonjsonlogger.json import JsonFormatter
 from openhands.sdk.logger import ENV_JSON, ENV_LOG_LEVEL, IN_CI
 
 
+# Paths that produce high-volume, low-signal access log entries (e.g. k8s
+# liveness probes hitting /alive every few seconds). Dropping these at the
+# log-filter level keeps all other access logs — including non-2xx responses
+# on the same paths — intact; see HealthCheckAccessLogFilter below.
+_HEALTH_CHECK_PATHS = frozenset({"/alive"})
+
+
+class HealthCheckAccessLogFilter(logging.Filter):
+    """Drop successful uvicorn access log records for health-check endpoints.
+
+    Uvicorn emits access log records with ``record.args`` as a 5-tuple of
+    ``(client_addr, method, full_path, http_version, status_code)``. When the
+    path is a known health-check endpoint AND the response is 2xx, we drop
+    the record. Non-2xx responses (probe failures) still pass through so
+    operators can see real liveness issues.
+    """
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        args = record.args
+        if not isinstance(args, tuple) or len(args) < 5:
+            return True
+        full_path = args[2]
+        status_code = args[4]
+        if not isinstance(full_path, str):
+            return True
+        # Strip query string so ``/alive?foo=1`` is still matched.
+        path = full_path.split("?", 1)[0]
+        if path not in _HEALTH_CHECK_PATHS:
+            return True
+        try:
+            code = int(status_code)  # type: ignore[arg-type]
+        except (TypeError, ValueError):
+            return True
+        # Only suppress successful probes; surface failures.
+        return not (200 <= code < 300)
+
+
 class UvicornAccessJsonFormatter(JsonFormatter):
     """JSON formatter for uvicorn access logs that extracts HTTP fields.
 
@@ -63,6 +100,13 @@ def get_uvicorn_logging_config() -> dict[str, Any]:
         "version": 1,
         "disable_existing_loggers": False,
         "incremental": False,
+        "filters": {
+            # Drops successful (2xx) access-log records for /alive probes so
+            # k8s liveness-check traffic does not spam the access log.
+            "health_check_access": {
+                "()": HealthCheckAccessLogFilter,
+            },
+        },
         "formatters": {},
         "handlers": {},
         "loggers": {
@@ -99,6 +143,7 @@ def get_uvicorn_logging_config() -> dict[str, Any]:
             "handlers": ["access_json"],
             "level": log_level,
             "propagate": False,  # Don't double-log
+            "filters": ["health_check_access"],
         }
     else:
         # Non-JSON mode: propagate access logs to root (uses Rich handler)
@@ -106,6 +151,7 @@ def get_uvicorn_logging_config() -> dict[str, Any]:
             "handlers": [],
             "level": log_level,
             "propagate": True,
+            "filters": ["health_check_access"],
         }
 
     return config
